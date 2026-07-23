@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daniel Lim</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* Glassmorphism effects */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .dark .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #334155;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #0284c7 0%, #6366f1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .dark .gradient-text {
+            background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 min-h-screen flex flex-col selection:bg-brand-500 selection:text-white">
+
+    <!-- Sticky Navigation Header -->
+    <header class="sticky top-0 z-40 w-full glass-panel transition-all duration-300 border-b border-slate-200 dark:border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <!-- Brand Logo -->
+            <a href="#about" onclick="setActiveTab('about')" class="flex items-center gap-2 group focus:outline-none">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-600 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-brand-500/20 group-hover:scale-105 transition-transform">
+                    DL
+                </div>
+                <div class="flex flex-col">
+                    <span class="font-bold text-slate-900 dark:text-white leading-tight">Daniel Lim</span>
+                    <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">Developer & Educator</span>
+                </div>
+            </a>
+
+            <!-- Desktop Navigation Links -->
+            <nav class="hidden md:flex items-center gap-1 bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-full border border-slate-200/50 dark:border-slate-700/50">
+                <button onclick="setActiveTab('about')" id="nav-btn-about" class="nav-tab px-5 py-2 rounded-full text-sm font-medium transition-all text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">
+                    <i class="fa-regular fa-user mr-1.5"></i>About Me
+                </button>
+                <button onclick="setActiveTab('projects')" id="nav-btn-projects" class="nav-tab px-5 py-2 rounded-full text-sm font-medium transition-all text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">
+                    <i class="fa-solid fa-code mr-1.5"></i>Projects
+                </button>
+                <button onclick="setActiveTab('resources')" id="nav-btn-resources" class="nav-tab px-5 py-2 rounded-full text-sm font-medium transition-all text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white flex items-center">
+                    <i class="fa-solid fa-bookmark mr-1.5"></i>Resources
+                    <span id="resource-badge" class="ml-2 bg-brand-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full hidden">0</span>
+                </button>
+                <button onclick="setActiveTab('contact')" id="nav-btn-contact" class="nav-tab px-5 py-2 rounded-full text-sm font-medium transition-all text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">
+                    <i class="fa-regular fa-paper-plane mr-1.5"></i>Contact
+                </button>
+            </nav>
+
+            <!-- Actions Right -->
+            <div class="flex items-center gap-3">
+                <!-- Theme Switcher Toggle -->
+                <button id="theme-toggle" onclick="toggleTheme()" class="p-2.5 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors focus:outline-none" title="Toggle Theme">
+                    <i id="theme-toggle-dark-icon" class="fa-solid fa-moon hidden"></i>
+                    <i id="theme-toggle-light-icon" class="fa-solid fa-sun hidden"></i>
+                </button>
+
+                <!-- Mobile menu toggle button -->
+                <button id="mobile-menu-btn" onclick="toggleMobileMenu()" class="md:hidden p-2.5 rounded-xl text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none">
+                    <i class="fa-solid fa-bars text-lg" id="menu-icon-bars"></i>
+                    <i class="fa-solid fa-xmark text-lg hidden" id="menu-icon-close"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Dropdown Navigation -->
+        <div id="mobile-menu" class="hidden md:hidden border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg px-4 pt-3 pb-5 space-y-2">
+            <button onclick="setActiveTab('about'); toggleMobileMenu()" class="w-full text-left px-4 py-3 rounded-xl text-base font-medium flex items-center gap-3 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">
+                <i class="fa-regular fa-user text-brand-500"></i>About Me
+            </button>
+            <button onclick="setActiveTab('projects'); toggleMobileMenu()" class="w-full text-left px-4 py-3 rounded-xl text-base font-medium flex items-center gap-3 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">
+                <i class="fa-solid fa-code text-indigo-500"></i>Projects
+            </button>
+            <button onclick="setActiveTab('resources'); toggleMobileMenu()" class="w-full text-left px-4 py-3 rounded-xl text-base font-medium flex items-center justify-between text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-bookmark text-emerald-500"></i>Resources Hub
+                </div>
+                <span class="bg-brand-100 dark:bg-brand-900/40 text-brand-600 dark:text-brand-300 text-xs px-2 py-0.5 rounded-full font-semibold">Library</span>
+            </button>
+            <button onclick="setActiveTab('contact'); toggleMobileMenu()" class="w-full text-left px-4 py-3 rounded-xl text-base font-medium flex items-center gap-3 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">
+                <i class="fa-regular fa-paper-plane text-amber-500"></i>Contact
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Wrapper -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+        
+        <!-- SECTION 1: ABOUT ME PAGE -->
+        <section id="section-about" class="tab-content space-y-16 animate-fade-in">
+            <!-- Hero Banner -->
+            <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-8 sm:p-12 shadow-2xl border border-slate-800">
+                <div class="relative z-10 max-w-3xl space-y-4">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-brand-300 text-xs font-semibold tracking-wide uppercase border border-white/10">
+                        Philosophy, Computer Science, and Math
+                    </div>
+                    <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight">
+                        Hi, I'm <span class="gradient-text">Daniel Lim</span>
+                    </h1>
+                    <p class="text-slate-300 text-base sm:text-lg leading-relaxed font-light">
+                        I build high-performance web applications, create open-source developer tooling, and curate learning resources to help programmers level up their technical skills.
+                    </p>
+                    
+                    <!-- CTA Buttons -->
+                    <div class="pt-2 flex flex-wrap gap-4">
+                        <button onclick="setActiveTab('resources')" class="px-6 py-3 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold shadow-lg shadow-brand-600/30 transition-all flex items-center gap-2 group">
+                            <i class="fa-solid fa-book-open"></i> Explore Resources
+                            <i class="fa-solid fa-arrow-right text-xs group-hover:translate-x-1 transition-transform"></i>
+                        </button>
+                        <button onclick="setActiveTab('contact')" class="px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold border border-white/15 transition-all flex items-center gap-2">
+                            <i class="fa-regular fa-envelope"></i> Get In Touch
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Biography Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Bio Card -->
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="bg-white dark:bg-slate-800/80 p-8 rounded-3xl border border-slate-200 dark:border-slate-700/60 shadow-sm space-y-4">
+                        <div class="flex items-center gap-3">
+                            <div class="p-3 bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 rounded-2xl">
+                                <i class="fa-solid fa-user-gear text-xl"></i>
+                            </div>
+                            <h2 class="text-2xl font-bold text-slate-900 dark:text-white">Background & Philosophy</h2>
+                        </div>
+                        <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
+                            With over 6 years of industry experience, I specialize in modern JavaScript frameworks, web performance optimization, and scalable cloud architectures. Beyond writing code, I love breaking down complex computer science concepts into intuitive tutorials and interactive reference guides.
+                        </p>
+                        <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
+                            This website serves as my digital garden—a space where I share my personal portfolio along with hand-picked resources, tools, and documentation that I frequently reference in my day-to-day workflow.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 2: PROJECTS PAGE -->
+        <section id="section-projects" class="tab-content hidden space-y-8 animate-fade-in">
+            <div class="max-w-3xl space-y-3">
+                <h2 class="text-3xl font-extrabold text-slate-900 dark:text-white">Featured Projects</h2>
+                <p class="text-slate-600 dark:text-slate-400">
+                    A selection of web applications, developer tools, and open-source software I've built.
+                </p>
+            </div>
+
+            <!-- Projects Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                
+                <!-- Project 1 -->
+                <div class="group bg-white dark:bg-slate-800/80 rounded-3xl border border-slate-200 dark:border-slate-700/60 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col">
+                    <div class="relative h-48 overflow-hidden bg-slate-100 dark:bg-slate-900">
+                        <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=80&w=600" 
+                             onerror="this.src='https://placehold.co/600x400/0284c7/ffffff?text=DevAnalytics+Dashboard'" 
+                             alt="Project preview" 
+                             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                        <div class="absolute top-3 right-3 bg-slate-900/80 backdrop-blur-md text-xs font-semibold px-2.5 py-1 rounded-lg text-white">
+                            React / Node.js
+                        </div>
+                    </div>
+                    <div class="p-6 flex-grow flex flex-col justify-between space-y-4">
+                        <div class="space-y-2">
+                            <h3 class="text-xl font-bold text-slate-900 dark:text-white group-hover:text-brand-500 transition-colors">
+                                DevAnalytics Hub
+                            </h3>
+                            <p class="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">
+                                A developer metrics dashboard for tracking repository performance, pull request turnaround, and automated build pipelines.
+                            </p>
+                        </div>
+                        <div class="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-700/60">
+                            <div class="flex gap-2">
+                                <span class="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs px-2.5 py-1 rounded-md font-medium">TypeScript</span>
+                                <span class="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs px-2.5 py-1 rounded-md font-medium">Tailwind</span>
+                            </div>
+                            <button onclick="openModal('DevAnalytics Hub', 'DevAnalytics Hub is a real-time web application providing aggregated repository health insights. Features interactive charts, team velocity trackers, and GitHub webhook integrations.')" class="text-brand-600 hover:text-brand-700 dark:text-brand-400 text-sm font-semibold flex items-center gap-1">
+                                Details <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Project 2 -->
+                <div class="group bg-white dark:bg-slate-800/80 rounded-3xl border border-slate-200 dark:border-slate-700/60 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col">
+                    <div class="relative h-48 overflow-hidden bg-slate-100 dark:bg-slate-900">
+                        <img src="https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&q=80&w=600" 
+                             onerror="this.src='https://placehold.co/600x400/6366f1/ffffff?text=Markdown+Notes+App'" 
+                             alt="Project preview" 
+                             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                        <div class="absolute top-3 right-3 bg-slate-900/80 backdrop-blur-md text-xs font-semibold px-2.5 py-1 rounded-lg text-white">
+                            Vue.js / PWA
+                        </div>
+                    </div>
+                    <div class="p-6 flex-grow flex flex-col justify-between space-y-4">
+                        <div class="space-y-2">
+                            <h3 class="text-xl font-bold text-slate-900 dark:text-white group-hover:text-brand-500 transition-colors">
+                                QuikNote Markdown Studio
+                            </h3>
+                            <p class="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">
+                                Offline-first distraction-free Markdown editor with instant live render, custom themes, and local encryption.
+                            </p>
+                        </div>
+                        <div class="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-700/60">
+                            <div class="flex gap-2">
+                                <span class="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs px-2.5 py-1 rounded-md font-medium">Vue 3</span>
+                                <span class="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs px-2.5 py-1 rounded-md font-medium">IndexedDB</span>
+                            </div>
+                            <button onclick="openModal('QuikNote Studio', 'QuikNote is a lightweight Progressive Web App tailored for technical documentation. Features instant AST parsing, auto-save, and seamless export to PDF or HTML.')" class="text-brand-600 hover:text-brand-700 dark:text-brand-400 text-sm font-semibold flex items-center gap-1">
+                                Details <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Project 3 -->
+                <div class="group bg-white dark:bg-slate-800/80 rounded-3xl border border-slate-200 dark:border-slate-700/60 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col">
+                    <div class="relative h-48 overflow-hidden bg-slate-100 dark:bg-slate-900">
+                        <img src="https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?auto=format&fit=crop&q=80&w=600" 
+                             onerror="this.src='https://placehold.co/600x400/10b981/ffffff?text=API+Mock+Engine'" 
+                             alt="Project preview" 
+                             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                        <div class="absolute top-3 right-3 bg-slate-900/80 backdrop-blur-md text-xs font-semibold px-2.5 py-1 rounded-lg text-white">
+                            Go / CLI
+                        </div>
+                    </div>
+                    <div class="p-6 flex-grow flex flex-col justify-between space-y-4">
+                        <div class="space-y-2">
+                            <h3 class="text-xl font-bold text-slate-900 dark:text-white group-hover:text-brand-500 transition-colors">
+                                MockForge API Server
+                            </h3>
+                            <p class="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">
+                                A high-speed CLI tool that generates realistic REST and GraphQL mock endpoints from JSON schema files.
+                            </p>
+                        </div>
+                        <div class="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-700/60">
+                            <div class="flex gap-2">
+                                <span class="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs px-2.5 py-1 rounded-md font-medium">Go</span>
+                                <span class="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs px-2.5 py-1 rounded-md font-medium">Docker</span>
+                            </div>
+                            <button onclick="openModal('MockForge API', 'MockForge allows frontend developers to build independently of backend dependencies by spinning up lightweight mock REST/GraphQL endpoints with customizable delay and rate limiting.')" class="text-brand-600 hover:text-brand-700 dark:text-brand-400 text-sm font-semibold flex items-center gap-1">
+                                Details <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- SECTION 3: RESOURCES HUB PAGE -->
+        <section id="section-resources" class="tab-content hidden space-y-8 animate-fade-in">
+            <!-- Resource Header Banner -->
+            <div class="bg-gradient-to-r from-brand-600 via-indigo-600 to-purple-600 rounded-3xl p-8 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
+                <div class="space-y-2 max-w-xl text-center md:text-left">
+                    <span class="bg-white/20 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider backdrop-blur-md">Curated Knowledge Base</span>
+                    <h2 class="text-3xl font-extrabold">Developer Resource Hub</h2>
+                    <p class="text-brand-100 text-sm sm:text-base leading-relaxed">
+                        Discover my personal collection of handpicked tools, cheat sheets, frameworks, and articles to streamline your development workflow.
+                    </p>
+                </div>
+                <!-- Action Button inside hub -->
+                <button onclick="openAddResourceModal()" class="flex-shrink-0 bg-white hover:bg-slate-100 text-slate-900 px-5 py-3 rounded-2xl font-bold text-sm shadow-md transition-transform hover:scale-105 flex items-center gap-2">
+                    <i class="fa-solid fa-plus text-brand-600"></i> Suggest Resource
+                </button>
+            </div>
+
+            <!-- Search Bar & Filters -->
+            <div class="bg-white dark:bg-slate-800/80 p-4 sm:p-6 rounded-3xl border border-slate-200 dark:border-slate-700/60 shadow-sm space-y-4">
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <!-- Search Input -->
+                    <div class="relative flex-grow">
+                        <i class="fa-solid fa-magnifying-glass absolute left-4 top-3.5 text-slate-400"></i>
+                        <input type="text" id="resource-search" oninput="filterResources()" placeholder="Search tools, books, guides, or cheat sheets..." class="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-900 dark:text-white">
+                    </div>
+                    <!-- View Bookmarks Filter -->
+                    <button id="bookmark-filter-btn" onclick="toggleBookmarkFilter()" class="px-5 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm font-semibold flex items-center justify-center gap-2 transition-colors text-slate-700 dark:text-slate-200">
+                        <i class="fa-solid fa-bookmark text-amber-500"></i> Saved Only (<span id="saved-count">0</span>)
+                    </button>
+                </div>
+
+                <!-- Category Pills -->
+                <div class="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none" id="category-pills">
+                    <!-- JS will populate category buttons -->
+                </div>
+            </div>
+
+            <!-- Resource Cards Grid -->
+            <div id="resource-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Javascript will inject dynamic resource cards here -->
+            </div>
+
+            <!-- Empty State Message -->
+            <div id="resource-empty-state" class="hidden text-center py-16 bg-white dark:bg-slate-800/40 rounded-3xl border border-dashed border-slate-300 dark:border-slate-700 p-8 space-y-3">
+                <div class="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center mx-auto text-slate-400 text-2xl">
+                    <i class="fa-solid fa-folder-open"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-900 dark:text-white">No resources found</h3>
+                <p class="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto">Try adjusting your search terms or selecting a different category filter.</p>
+                <button onclick="resetResourceFilters()" class="text-sm font-semibold text-brand-600 dark:text-brand-400 hover:underline">
+                    Reset all filters
+                </button>
+            </div>
+        </section>
+
+        <!-- SECTION 4: CONTACT PAGE -->
+        <section id="section-contact" class="tab-content hidden space-y-8 animate-fade-in max-w-4xl mx-auto">
+            <div class="text-center space-y-3">
+                <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white">Let's Connect</h2>
+                <p class="text-slate-600 dark:text-slate-400 max-w-lg mx-auto">
+                    Have a project in mind, a question about a resource, or just want to say hello? Drop me a message below!
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-8">
+                <!-- Contact Info Sidebar -->
+                <div class="md:col-span-2 space-y-6">
+                    <div class="bg-white dark:bg-slate-800/80 p-6 rounded-3xl border border-slate-200 dark:border-slate-700/60 shadow-sm space-y-6">
+                        <h3 class="font-bold text-lg text-slate-900 dark:text-white">Contact Info</h3>
+                        
+                        <div class="space-y-4 text-sm">
+                            <div class="flex items-start gap-3">
+                                <div class="p-2.5 bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 rounded-xl">
+                                    <i class="fa-regular fa-envelope text-base"></i>
+                                </div>
+                                <div class="overflow-hidden">
+                                    <div class="text-xs text-slate-500 dark:text-slate-400">Email Address</div>
+                                    <button onclick="copyToClipboard('alex.morgan@example.com', 'Email copied!')" class="font-semibold text-slate-900 dark:text-white hover:text-brand-500 text-left flex items-center gap-1.5 transition-colors">
+                                        alex.morgan@example.com
+                                        <i class="fa-regular fa-copy text-xs text-slate-400"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="flex items-start gap-3">
+                                <div class="p-2.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl">
+                                    <i class="fa-solid fa-location-dot text-base"></i>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-slate-500 dark:text-slate-400">Location</div>
+                                    <div class="font-semibold text-slate-900 dark:text-white">San Francisco, CA</div>
+                                </div>
+                            </div>
+
+                            <div class="flex items-start gap-3">
+                                <div class="p-2.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl">
+                                    <i class="fa-solid fa-clock text-base"></i>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-slate-500 dark:text-slate-400">Time Zone</div>
+                                    <div class="font-semibold text-slate-900 dark:text-white">PST (UTC-8)</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="border-slate-100 dark:border-slate-700">
+
+                        <h4 class="font-bold text-xs uppercase tracking-wider text-slate-400">Social Channels</h4>
+                        <div class="flex items-center gap-3">
+                            <a href="https://github.com" target="_blank" class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-brand-500 hover:text-white dark:hover:bg-brand-500 transition-colors">
+                                <i class="fa-brands fa-github text-lg"></i>
+                            </a>
+                            <a href="https://twitter.com" target="_blank" class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-brand-500 hover:text-white dark:hover:bg-brand-500 transition-colors">
+                                <i class="fa-brands fa-x-twitter text-lg"></i>
+                            </a>
+                            <a href="https://linkedin.com" target="_blank" class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-brand-500 hover:text-white dark:hover:bg-brand-500 transition-colors">
+                                <i class="fa-brands fa-linkedin-in text-lg"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Section -->
+                <div class="md:col-span-3">
+                    <form onsubmit="handleContactSubmit(event)" class="bg-white dark:bg-slate-800/80 p-8 rounded-3xl border border-slate-200 dark:border-slate-700/60 shadow-sm space-y-5">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Your Name</label>
+                                <input type="text" required placeholder="Jane Doe" class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-900 dark:text-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Email Address</label>
+                                <input type="email" required placeholder="jane@example.com" class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-900 dark:text-white">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Subject</label>
+                            <input type="text" required placeholder="Project Inquiry / Resource Suggestion" class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-900 dark:text-white">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Message</label>
+                            <textarea rows="4" required placeholder="How can I help you?" class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-900 dark:text-white resize-none"></textarea>
+                        </div>
+
+                        <button type="submit" class="w-full py-3.5 bg-brand-600 hover:bg-brand-500 text-white font-bold rounded-2xl shadow-lg shadow-brand-600/25 transition-all flex items-center justify-center gap-2">
+                            <i class="fa-regular fa-paper-plane"></i> Send Message
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Page Footer -->
+    <footer class="border-t border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 mt-16 py-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 dark:text-slate-400">
+            <div class="flex items-center gap-2">
+                <span class="font-bold text-slate-800 dark:text-slate-200">Daniel Lim</span> &copy; <span id="year">2026</span>
+            </div>
+            <div class="flex gap-4">
+                <button onclick="setActiveTab('about')" class="hover:underline">About</button>
+                <button onclick="setActiveTab('projects')" class="hover:underline">Projects</button>
+                <button onclick="setActiveTab('resources')" class="hover:underline">Resources</button>
+                <button onclick="setActiveTab('contact')" class="hover:underline">Contact</button>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Interactive Modal for Details -->
+    <div id="modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4 animate-fade-in relative">
+            <button onclick="closeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 dark:hover:text-white p-2">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <h3 id="modal-title" class="text-xl font-bold text-slate-900 dark:text-white">Modal Title</h3>
+            <p id="modal-body" class="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">Modal description content...</p>
+            <div class="pt-2 flex justify-end">
+                <button onclick="closeModal()" class="px-5 py-2.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-medium text-sm rounded-xl transition-colors">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Suggesting Resource -->
+    <div id="add-resource-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4 animate-fade-in relative">
+            <button onclick="closeAddResourceModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 dark:hover:text-white p-2">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <h3 class="text-xl font-bold text-slate-900 dark:text-white">Suggest a Resource</h3>
+            <form onsubmit="handleAddResource(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">Title</label>
+                    <input type="text" id="new-res-title" required placeholder="e.g. Tailwind CSS Docs" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">Category</label>
+                    <select id="new-res-cat" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500">
+                        <option value="Tools">Tools & Software</option>
+                        <option value="Documentation">Documentation</option>
+                        <option value="Books">Books & Guides</option>
+                        <option value="Learning">Learning / Tutorials</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">URL Link</label>
+                    <input type="url" id="new-res-url" required placeholder="https://example.com" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">Short Description</label>
+                    <textarea id="new-res-desc" rows="3" required placeholder="Why is this resource useful?" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"></textarea>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeAddResourceModal()" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-sm font-semibold rounded-xl">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-sm font-semibold rounded-xl">Add Resource</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Notification Toast Container -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <script>
+        // Initial Resource Dataset
+        const initialResources = [
+            {
+                id: 'res-1',
+                title: 'Tailwind CSS Documentation',
+                category: 'Documentation',
+                description: 'A utility-first CSS framework packed with classes that can be composed to build any design directly in your markup.',
+                url: 'https://tailwindcss.com/docs',
+                icon: 'fa-brands fa-css3-alt',
+                tag: 'Design',
+                rating: 4.9
+            },
+            {
+                id: 'res-2',
+                title: 'MDN Web Docs',
+                category: 'Documentation',
+                description: 'The premier resource for developer documentation on HTML, CSS, JavaScript, and Web APIs.',
+                url: 'https://developer.mozilla.org',
+                icon: 'fa-solid fa-globe',
+                tag: 'Reference',
+                rating: 5.0
+            },
+            {
+                id: 'res-3',
+                title: 'You Don\'t Know JS (Yet)',
+                category: 'Books',
+                description: 'An essential book series diving deep into the core mechanics of JavaScript by Kyle Simpson.',
+                url: 'https://github.com/getify/You-Dont-Know-JS',
+                icon: 'fa-solid fa-book-journal-whills',
+                tag: 'JavaScript',
+                rating: 4.8
+            },
+            {
+                id: 'res-4',
+                title: 'FontAwesome Icon Library',
+                category: 'Tools',
+                description: 'The web\'s most popular icon set and toolkit for crisp SVG and web font icons.',
+                url: 'https://fontawesome.com',
+                icon: 'fa-solid fa-icons',
+                tag: 'UI Assets',
+                rating: 4.7
+            },
+            {
+                id: 'res-5',
+                title: 'Refactoring UI',
+                category: 'Books',
+                description: 'Practical design guidance by Adam Wathan & Steve Schoger for developers looking to make awesome user interfaces.',
+                url: 'https://www.refactoringui.com',
+                icon: 'fa-solid fa-palette',
+                tag: 'UI/UX',
+                rating: 4.9
+            },
+            {
+                id: 'res-6',
+                title: 'Frontend Practice',
+                category: 'Learning',
+                description: 'Take your frontend skills to the next level by recreating real websites from real companies.',
+                url: 'https://www.frontendpractice.com',
+                icon: 'fa-solid fa-laptop-code',
+                tag: 'Practice',
+                rating: 4.6
+            },
+            {
+                id: 'res-7',
+                title: 'Excalidraw',
+                category: 'Tools',
+                description: 'Virtual whiteboard tool for sketching hand-drawn like diagrams and system architectures.',
+                url: 'https://excalidraw.com',
+                icon: 'fa-solid fa-pen-ruler',
+                tag: 'Diagrams',
+                rating: 4.8
+            },
+            {
+                id: 'res-8',
+                title: 'JavaScript.info',
+                category: 'Learning',
+                description: 'From the basics to advanced topics with clear, simple explanations and interactive samples.',
+                url: 'https://javascript.info',
+                icon: 'fa-solid fa-graduation-cap',
+                tag: 'Tutorials',
+                rating: 4.9
+            }
+        ];
+
+        // State Management
+        let resources = [...initialResources];
+        let savedResourceIds = new Set(JSON.parse(localStorage.getItem('saved_resources') || '[]'));
+        let selectedCategory = 'All';
+        let showOnlyBookmarks = false;
+
+        // Initialize App
+        window.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+            renderCategories();
+            renderResources();
+            updateBookmarkBadge();
+            document.getElementById('year').textContent = new Date().getFullYear();
+        });
+
+        // Navigation Tab Switcher
+        function setActiveTab(tabId) {
+            // Hide all contents
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            
+            // Show active section
+            const activeSection = document.getElementById(`section-${tabId}`);
+            if (activeSection) {
+                activeSection.classList.remove('hidden');
+            }
+
+            // Update Nav buttons state
+            document.querySelectorAll('.nav-tab').forEach(btn => {
+                btn.classList.remove('bg-white', 'dark:bg-slate-700', 'text-slate-900', 'dark:text-white', 'shadow-sm');
+                btn.classList.add('text-slate-600', 'dark:text-slate-300');
+            });
+
+            const activeBtn = document.getElementById(`nav-btn-${tabId}`);
+            if (activeBtn) {
+                activeBtn.classList.add('bg-white', 'dark:bg-slate-700', 'text-slate-900', 'dark:text-white', 'shadow-sm');
+                activeBtn.classList.remove('text-slate-600', 'dark:text-slate-300');
+            }
+
+            // Scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Mobile Menu Toggle
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobile-menu');
+            const bars = document.getElementById('menu-icon-bars');
+            const close = document.getElementById('menu-icon-close');
+            menu.classList.toggle('hidden');
+            bars.classList.toggle('hidden');
+            close.classList.toggle('hidden');
+        }
+
+        // Dark/Light Theme Switching
+        function initTheme() {
+            if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+                document.getElementById('theme-toggle-light-icon').classList.remove('hidden');
+            } else {
+                document.documentElement.classList.remove('dark');
+                document.getElementById('theme-toggle-dark-icon').classList.remove('hidden');
+            }
+        }
+
+        function toggleTheme() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.theme = isDark ? 'dark' : 'light';
+            
+            document.getElementById('theme-toggle-dark-icon').classList.toggle('hidden', isDark);
+            document.getElementById('theme-toggle-light-icon').classList.toggle('hidden', !isDark);
+            
+            showToast(isDark ? 'Dark mode enabled' : 'Light mode enabled');
+        }
+
+        // Category Pills Generator
+        function renderCategories() {
+            const categories = ['All', 'Tools', 'Documentation', 'Books', 'Learning'];
+            const container = document.getElementById('category-pills');
+            
+            container.innerHTML = categories.map(cat => `
+                <button onclick="setCategory('${cat}')" class="category-btn px-4 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all ${selectedCategory === cat ? 'bg-brand-600 text-white shadow-md' : 'bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}">
+                    ${cat}
+                </button>
+            `).join('');
+        }
+
+        function setCategory(cat) {
+            selectedCategory = cat;
+            renderCategories();
+            filterResources();
+        }
+
+        function toggleBookmarkFilter() {
+            showOnlyBookmarks = !showOnlyBookmarks;
+            const btn = document.getElementById('bookmark-filter-btn');
+            if (showOnlyBookmarks) {
+                btn.classList.add('bg-amber-500', 'text-white', 'border-amber-500');
+                btn.classList.remove('bg-slate-50', 'dark:bg-slate-900/80', 'text-slate-700', 'dark:text-slate-200');
+            } else {
+                btn.classList.remove('bg-amber-500', 'text-white', 'border-amber-500');
+                btn.classList.add('bg-slate-50', 'dark:bg-slate-900/80', 'text-slate-700', 'dark:text-slate-200');
+            }
+            filterResources();
+        }
+
+        // Filter and Render Resources Grid
+        function filterResources() {
+            const query = document.getElementById('resource-search').value.toLowerCase();
+            
+            const filtered = resources.filter(res => {
+                const matchesSearch = res.title.toLowerCase().includes(query) || 
+                                     res.description.toLowerCase().includes(query) ||
+                                     res.tag.toLowerCase().includes(query);
+                const matchesCat = selectedCategory === 'All' || res.category === selectedCategory;
+                const matchesBookmark = !showOnlyBookmarks || savedResourceIds.has(res.id);
+
+                return matchesSearch && matchesCat && matchesBookmark;
+            });
+
+            renderResources(filtered);
+        }
+
+        function renderResources(itemsToRender = resources) {
+            const grid = document.getElementById('resource-grid');
+            const emptyState = document.getElementById('resource-empty-state');
+
+            if (itemsToRender.length === 0) {
+                grid.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            grid.innerHTML = itemsToRender.map(res => {
+                const isBookmarked = savedResourceIds.has(res.id);
+                return `
+                    <div class="bg-white dark:bg-slate-800/80 p-6 rounded-3xl border border-slate-200 dark:border-slate-700/60 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between space-y-4 group">
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-300 text-xs font-bold px-2.5 py-1 rounded-lg">
+                                    <i class="${res.icon} mr-1"></i> ${res.category}
+                                </span>
+                                <button onclick="toggleBookmark('${res.id}')" class="p-2 rounded-xl text-slate-400 hover:text-amber-500 transition-colors" title="Save Resource">
+                                    <i class="${isBookmarked ? 'fa-solid text-amber-500' : 'fa-regular'} fa-bookmark text-base"></i>
+                                </button>
+                            </div>
+
+                            <h3 class="text-lg font-bold text-slate-900 dark:text-white group-hover:text-brand-500 transition-colors">
+                                ${res.title}
+                            </h3>
+
+                            <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                                ${res.description}
+                            </p>
+                        </div>
+
+                        <div class="pt-4 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between">
+                            <span class="text-[11px] font-semibold text-slate-400 bg-slate-100 dark:bg-slate-700/50 px-2 py-0.5 rounded">
+                                #${res.tag}
+                            </span>
+                            <a href="${res.url}" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-xl bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 hover:bg-brand-600 dark:hover:bg-brand-400 dark:hover:text-white text-xs font-bold transition-all flex items-center gap-1.5">
+                                Visit Site <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                            </a>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Bookmark Toggle Logic
+        function toggleBookmark(id) {
+            if (savedResourceIds.has(id)) {
+                savedResourceIds.delete(id);
+                showToast('Removed from saved bookmarks');
+            } else {
+                savedResourceIds.add(id);
+                showToast('Added to saved bookmarks');
+            }
+
+            localStorage.setItem('saved_resources', JSON.stringify([...savedResourceIds]));
+            updateBookmarkBadge();
+            filterResources();
+        }
+
+        function updateBookmarkBadge() {
+            const count = savedResourceIds.size;
+            document.getElementById('saved-count').textContent = count;
+            
+            const badge = document.getElementById('resource-badge');
+            if (count > 0) {
+                badge.textContent = count;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        function resetResourceFilters() {
+            document.getElementById('resource-search').value = '';
+            selectedCategory = 'All';
+            showOnlyBookmarks = false;
+            
+            const btn = document.getElementById('bookmark-filter-btn');
+            btn.classList.remove('bg-amber-500', 'text-white', 'border-amber-500');
+            btn.classList.add('bg-slate-50', 'dark:bg-slate-900/80', 'text-slate-700', 'dark:text-slate-200');
+
+            renderCategories();
+            filterResources();
+        }
+
+        // Generic Modal Utility
+        function openModal(title, text) {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-body').textContent = text;
+            document.getElementById('modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.add('hidden');
+        }
+
+        // Suggest Resource Modal Logic
+        function openAddResourceModal() {
+            document.getElementById('add-resource-modal').classList.remove('hidden');
+        }
+
+        function closeAddResourceModal() {
+            document.getElementById('add-resource-modal').classList.add('hidden');
+        }
+
+        function handleAddResource(e) {
+            e.preventDefault();
+            const newRes = {
+                id: 'res-' + Date.now(),
+                title: document.getElementById('new-res-title').value,
+                category: document.getElementById('new-res-cat').value,
+                description: document.getElementById('new-res-desc').value,
+                url: document.getElementById('new-res-url').value,
+                icon: 'fa-solid fa-link',
+                tag: 'Community',
+                rating: 5.0
+            };
+
+            resources.unshift(newRes);
+            closeAddResourceModal();
+            filterResources();
+            showToast('New resource suggested successfully!');
+            
+            // Reset form
+            e.target.reset();
+        }
+
+        // Clipboard Copy Helper
+        function copyToClipboard(text, message) {
+            const tempInput = document.createElement('input');
+            tempInput.value = text;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            showToast(message || 'Copied to clipboard!');
+        }
+
+        // Form Submit Simulator
+        function handleContactSubmit(e) {
+            e.preventDefault();
+            showToast('Message sent! I will respond shortly.');
+            e.target.reset();
+        }
+
+        // Dynamic Toast Notification UI
+        function showToast(message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            toast.className = 'pointer-events-auto bg-slate-900 text-white dark:bg-white dark:text-slate-900 px-4 py-3 rounded-2xl shadow-xl border border-slate-700 dark:border-slate-200 text-xs font-semibold flex items-center gap-2 animate-fade-in';
+            toast.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400 dark:text-emerald-600"></i> ${message}`;
+            
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'transition-opacity', 'duration-300');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
