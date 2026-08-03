@@ -1,56 +1,778 @@
-<script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-analytics.js";
-  import { getAI, getGenerativeModel, GoogleAIBackend } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-ai.js";
-  
-  import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app-check.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
 
-  // Your web app's Firebase configuration
-  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-  const firebaseConfig = {
-    apiKey: "AIzaSyBrkJPgrTOM5qb8eQRzvOCDvYIeZ9twxX4",
-    authDomain: "career-navigator-cabc7.firebaseapp.com",
-    projectId: "career-navigator-cabc7",
-    storageBucket: "career-navigator-cabc7.firebasestorage.app",
-    messagingSenderId: "890122110002",
-    appId: "1:890122110002:web:a62873a4736dda67f8e82b",
-    measurementId: "G-WPRGN1TVCQ"
-  };
 
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hawai'i Math Connections</title>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-analytics.js";
+    import { getAI, getGenerativeModel, GoogleAIBackend } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-ai.js";
+    import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app-check.js";
 
-  const appCheck = initializeAppCheck(app, {
-    provider: new ReCaptchaV3Provider('6Le7sHItAAAAAAo7vnEgc11blRDSVbLNEHtXJ_zr'),
-    isTokenAutoRefreshEnabled: true
-  });
+    const firebaseConfig = {
+      apiKey: "AIzaSyBrkJPgrTOM5qb8eQRzvOCDvYIeZ9twxX4",
+      authDomain: "career-navigator-cabc7.firebaseapp.com",
+      projectId: "career-navigator-cabc7",
+      storageBucket: "career-navigator-cabc7.firebasestorage.app",
+      messagingSenderId: "890122110002",
+      appId: "1:890122110002:web:a62873a4736dda67f8e82b",
+      measurementId: "G-WPRGN1TVCQ"
+    };
 
-  const ai = getAI(app, { backend: new GoogleAIBackend() });
+    try {
+      const app = initializeApp(firebaseConfig);
 
-  const analytics = getAnalytics(app);
+      const appCheck = initializeAppCheck(app, {
+        provider: new ReCaptchaV3Provider('6LfIbG8tAAAAAEbvlZnn4Gl-5vzH9gucrlq0OKgp'),
+        isTokenAutoRefreshEnabled: true
+      });
 
-  const model = getGenerativeModel(
-    ai,
-    {
-      model: "gemini-3.5-flash-lite",
-      // Provide code execution as a tool that the model can use to generate its response.
-      tools: [{ codeExecution: {} }]
+      const ai = getAI(app, { backend: new GoogleAIBackend() });
+      const analytics = getAnalytics(app);
+
+      window.callAI = async function(system, prompt) {
+        try {
+          const model = getGenerativeModel(ai, { 
+            model: "gemini-1.5-flash",
+            systemInstruction: system,
+            generationConfig: {
+              responseMimeType: "application/json"
+            }
+          });
+          const result = await model.generateContent(prompt);
+          const response = await result.response;
+          const text = response.text();
+          if (!text) return { _err: "Empty response from Firebase Gemini AI" };
+          var start = text.indexOf("{");
+          var end = text.lastIndexOf("}");
+          if (start >= 0 && end > start) {
+            return JSON.parse(text.substring(start, end + 1));
+          }
+          return JSON.parse(text);
+        } catch (err) {
+          console.error("Firebase AI generateContent error:", err);
+          return { _err: err.message || String(err) };
+        }
+      };
+      console.log("Firebase AI and App Check successfully initialized.");
+    } catch (e) {
+      console.error("Firebase initialization failed:", e);
+      window.firebaseInitError = e.message || String(e);
     }
-  );
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script>
+    // Suppress Babel in-browser warning (harmless for this use case)
+    (function() {
+      var origWarn = console.warn;
+      console.warn = function() {
+        if (arguments[0] && typeof arguments[0] === "string" && arguments[0].indexOf("in-browser Babel") >= 0) return;
+        origWarn.apply(console, arguments);
+      };
+    })();
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    var useState = React.useState;
+    var useMemo = React.useMemo;
+    var useEffect = React.useEffect;
 
-  const prompt =  "What is the sum of the first 50 prime numbers? " +
-          "Generate and run code for the calculation, and make sure you get all 50."
+const DATA = {"jobs":[{"soc":"35-3023","title":"Fast Food & Counter Workers","jobs":26791,"earn":30863,"math_imp":3.04,"edu":"No formal credential","content":[{"standard":"7.RP.3","name":"Percent problems: tips, tax, gratuities","source_knowledge":"Customer and Personal Service","knowledge_importance":4.24},{"standard":"6.RP.3b","name":"Solve unit rate problems including unit pricing","source_knowledge":"Customer and Personal Service","knowledge_importance":4.24},{"standard":"6.RP.3","name":"Ratio reasoning (recipes, scaling)","source_knowledge":"Food Production","knowledge_importance":3.37},{"standard":"5.NF.6","name":"Solve problems involving multiplication of fractions","source_knowledge":"Food Production","knowledge_importance":3.37},{"standard":"6.RP.3d","name":"Convert measurement units","source_knowledge":"Food Production","knowledge_importance":3.37},{"standard":"6.RP.2","name":"Unit rates","source_knowledge":"Sales and Marketing","knowledge_importance":3.02}],"practices":[{"id":"MP.1","name":"Make sense of problems and persevere in solving them","score":2.76,"top_evidence":["Making Decisions and Solving Problems","Getting Information"]},{"id":"MP.7","name":"Look for and make use of structure","score":2.7,"top_evidence":["Organizing, Planning, and Prioritizing Work","Scheduling Work and Activities"]},{"id":"MP.3","name":"Construct viable arguments and critique the reasoning of others","score":2.68,"top_evidence":["Evaluating Information to Determine Compliance with Standards","Communicating with Supervisors, Peers, or Subordinates"]},{"id":"MP.6","name":"Attend to precision","score":2.61,"top_evidence":["Documenting/Recording Information","Monitoring Processes, Materials, or Surroundings"]}],"tasks":["Request and record customer orders, and compute bills, using cash registers, multi-counting machines, or pencil and pape","Monitor and order supplies or food items, and restock as necessary to maintain inventory.","Clean and organize eating, service, and kitchen areas.","Prepare daily food items, and cook simple foods and beverages, such as sandwiches, salads, soups, pizza, or coffee, usin","Set up dining areas for meals, and clear them following meals."],"sw":"aide and artist assistant associate attendant back bakery bar barista baristas bistro boh brewer cafe cafeteria candy canteen carhop cashier caterers catering champion clerk coffee concession concessionaire counter cream crew deli delicatessen dietary dipper dish dispenser dog fast filler foh food fountain front gourmet helper hop hot house ice jerk jerker juicer kitchen line lunchroom maker man meat member mess operator order out person popcorn restaurant salad sandwich scooper server service shop snack soda sommelier specialist stand steam table take team vender vendor waiter waitress window worker workers fast food mcdonalds burger taco restaurant counter barista coffee latte"},{"soc":"41-2031","title":"Retail Salespersons","jobs":19086,"earn":35991,"math_imp":3.03,"edu":"No formal credential","content":[{"standard":"7.RP.3","name":"Percent problems: markups, discounts, commissions","source_knowledge":"Sales and Marketing","knowledge_importance":4.52},{"standard":"6.RP.2","name":"Unit rates","source_knowledge":"Sales and Marketing","knowledge_importance":4.52},{"standard":"F-IF.6","name":"Calculate and interpret average rate of change","source_knowledge":"Sales and Marketing","knowledge_importance":4.52},{"standard":"6.RP.3b","name":"Solve unit rate problems including unit pricing","source_knowledge":"Customer and Personal Service","knowledge_importance":4.34},{"standard":"S-ID.1","name":"Represent data with plots","source_knowledge":"Administration and Management","knowledge_importance":3.04},{"standard":"6.EE.9","name":"Relationships between dependent/independent variables","source_knowledge":"Administration and Management","knowledge_importance":3.04}],"practices":[{"id":"MP.1","name":"Make sense of problems and persevere in solving them","score":3.09,"top_evidence":["Making Decisions and Solving Problems","Getting Information"]},{"id":"MP.3","name":"Construct viable arguments and critique the reasoning of others","score":2.86,"top_evidence":["Evaluating Information to Determine Compliance with Standards","Communicating with Supervisors, Peers, or Subordinates"]},{"id":"MP.8","name":"Look for and express regularity in repeated reasoning","score":2.83,"top_evidence":["Updating and Using Relevant Knowledge","Monitoring Processes, Materials, or Surroundings"]},{"id":"MP.7","name":"Look for and make use of structure","score":2.69,"top_evidence":["Organizing, Planning, and Prioritizing Work","Scheduling Work and Activities"]}],"tasks":["Compute sales prices, total purchases, and receive and process cash or credit payment.","Demonstrate use or operation of merchandise.","Describe merchandise and explain use, operation, and care of merchandise to customers.","Inventory stock and requisition new stock.","Estimate and quote trade-in allowances."],"sw":"accessories advisor and apparel appliances art assistant associate attendant auto automobile automobiles automotive bakery bargain beauty boats books boys car childrens china cigarette clerk clothier clothing coins commission consultant coordinator corsetier corsets cosmetic cosmetics counselor coupon coverings curtains customer dairy dealer department design draperies drapery dry electric equipment estimator fashion fitter fitting floor flowers flying food furnishings furniture furs garden general girl goods haberdasher hardware home homes horticultural hostess hourly household image infants instruments jewelry layaway leather machines marine meat member mens menswear merchandise merchandising millinery motor motors music musical new nursery objects organs orthopedic person pet pets phonograph photographic pianos planning platform products professional recordings records redemption representative retail room sales salesman salesperson salespersons salesworker seasonal seller service sewing sheet shoe shoes shop silverware specialist sporting squad staffperson stamp stamps stereo stocking store suede supplies support surgical table tape team toiletries toy trailers trains used wallpaper wardrobe wear wig wigs womens worker yard store shop mall selling clothing shoes retail cashier"}],"topics":{"Adding & subtracting fractions":{"standards":["5.NF.1","5.NF.2","4.NF.3"],"jobs":[{"soc":"35-3023","title":"Fast Food & Counter Workers","jobs":26791,"earn":30863,"edu":"No formal credential","match_score":6.41}]}}};
 
-  const result = await model.generateContent(prompt);
-  const response = await result.response;
+var TOPIC_CATEGORIES = [
+  {
+    name: "Ratios & Proportional Reasoning",
+    color: "#c0392b",
+    topics: [
+      "Ratios & proportional reasoning",
+      "Unit rates & unit pricing",
+      "Percents, markups & discounts"
+    ]
+  },
+  {
+    name: "Number & Operations",
+    color: "#e67e22",
+    topics: [
+      "Adding & subtracting fractions",
+      "Multiplying & dividing fractions",
+      "Scientific notation"
+    ]
+  },
+  {
+    name: "Expressions, Equations & Functions",
+    color: "#2980b9",
+    topics: [
+      "Writing & solving equations",
+      "Graphing linear equations",
+      "Slope & rate of change",
+      "Systems of linear equations",
+      "Functions & function notation",
+      "Exponential growth & decay",
+      "Quadratic equations"
+    ]
+  },
+  {
+    name: "Geometry & Measurement",
+    color: "#1a7a5c",
+    topics: [
+      "Measurement & unit conversion",
+      "Angles & geometric relationships",
+      "Area, surface area & volume",
+      "The Pythagorean theorem",
+      "Scale drawings & similarity",
+      "Coordinate geometry",
+      "Trigonometric ratios"
+    ]
+  },
+  {
+    name: "Statistics & Probability",
+    color: "#7d3c98",
+    topics: [
+      "Statistics: mean, median, mode",
+      "Data displays & interpretation",
+      "Probability"
+    ]
+  },
+  {
+    name: "Financial Mathematics",
+    color: "#5b2c6f",
+    topics: [
+      "Financial math: interest & loans"
+    ]
+  }
+];
+
+function fuzzySearch(query, jobs) {
+  var qWords = query.toLowerCase().split(/\s+/).filter(function(w) { return w.length >= 2; });
+  if (!qWords.length) return jobs.slice(0, 8);
+  return jobs.map(function(j) {
+    var score = 0;
+    var titleLow = j.title.toLowerCase();
+    var allText = (j.title + " " + (j.sw || "")).toLowerCase();
+    var allWords = allText.split(/\s+/);
+    for (var qi = 0; qi < qWords.length; qi++) {
+      var qw = qWords[qi];
+      if (titleLow.indexOf(qw) >= 0) score += 15;
+      for (var ai = 0; ai < allWords.length; ai++) {
+        var aw = allWords[ai];
+        if (aw === qw) score += 3;
+        else if (aw.indexOf(qw) === 0) score += 2;
+        else if (qw.length >= 3 && aw.indexOf(qw) >= 0) score += 1;
+      }
+    }
+    return Object.assign({}, j, { score: score });
+  }).filter(function(j) { return j.score > 0; }).sort(function(a, b) { return b.score - a.score; }).slice(0, 10);
+}
+
+var SYS_SCENARIO = [
+  "You are a Hawaii secondary mathematics education specialist connecting math to real careers.",
+  "Create vivid, specific scenarios set in Hawaii showing math in action on the job.",
+  "Be concrete: name specific tasks, tools, materials, Hawaii locations.",
+  "For practices, explain HOW the practice shows up in the scenario.",
+  "Keep scenarios to 4-6 sentences. Be warm and encouraging.",
+  "Respond ONLY with valid JSON. No markdown, no backticks, no extra text."
+].join(" ");
+
+var SYS_TASK = [
+  "You are a Hawaii secondary math specialist who designs cognitively demanding tasks.",
+  "You use Smith and Stein's framework at the Doing Mathematics level:",
+  "non-algorithmic, complex thinking, self-monitoring, exploration of concepts.",
+  "Tasks should have a LOW FLOOR (accessible entry) and HIGH CEILING (extends to sophisticated reasoning).",
+  "Set tasks in authentic Hawaii contexts with real places and industries.",
+  "The task must be genuinely mathematical, not just a word problem with a single answer.",
+  "The 3 discussion questions should help teachers get students JUSTIFYING reasoning, COMPARING strategies, and CONNECTING representations.",
+  "Respond ONLY with valid JSON. No markdown, no backticks, no extra text."
+].join(" ");
+
+var PCOLORS = {
+  "MP.1": "#1a5276", "MP.2": "#7d3c98", "MP.3": "#c0392b", "MP.4": "#1a7a5c",
+  "MP.5": "#2e86c1", "MP.6": "#ca6f1e", "MP.7": "#5b2c6f", "MP.8": "#117864"
+};
+
+function Badge(props) {
+  return <span style={{
+    display: "inline-block", background: PCOLORS[props.id] || "#555", color: "#fff",
+    fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 4, letterSpacing: 0.5
+  }}>{props.id}</span>;
+}
+
+function Bar(props) {
+  var pct = ((props.value - 1) / 4) * 100;
+  var c = props.value >= 3.5 ? "#1a7a5c" : props.value >= 2.5 ? "#c4883a" : "#8b7355";
+  return <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+    <div style={{ width: 100, height: 7, background: "#e8e0d4", borderRadius: 4, overflow: "hidden" }}>
+      <div style={{ width: pct + "%", height: "100%", background: c, borderRadius: 4, transition: "width 0.5s" }} />
+    </div>
+    <span style={{ fontSize: 12, color: "#6b5e50", fontWeight: 600 }}>{props.value.toFixed(1)}</span>
+  </div>;
+}
+
+function Spin(props) {
+  return <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "20px 0" }}>
+    <div style={{
+      width: 24, height: 24, border: "2.5px solid #e8e0d4", borderTopColor: "#1a7a5c",
+      borderRadius: "50%", animation: "spin 0.8s linear infinite", flexShrink: 0
+    }} />
+    <span style={{ color: "#8b7355", fontSize: 13, fontStyle: "italic" }}>{props.msg || "Working..."}</span>
+  </div>;
+}
+
+function Tag(props) {
+  return <span style={{
+    fontSize: 10, background: "#eee8dc", color: "#8b7355", padding: "2px 6px",
+    borderRadius: 3, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase"
+  }}>{props.label}</span>;
+}
+
+function safeTasks(tasks) {
+  if (!tasks || !Array.isArray(tasks)) return "";
+  return tasks.map(function(t) { return String(t).replace(/"/g, "'"); }).join("; ");
+}
+
+var _apiKey = "";
+
+function getApiKey() { return _apiKey; }
+function setApiKey(k) { _apiKey = k.trim(); }
+
+async function callClaude(system, prompt) {
+  // Wait for Firebase ES module script to finish loading (up to 10 seconds)
+  var waits = 100;
+  while (typeof window.callAI !== "function" && waits > 0) {
+    await new Promise(function(resolve) { setTimeout(resolve, 100); });
+    waits--;
+  }
+
+  if (typeof window.callAI === "function") {
+    return await window.callAI(system, prompt);
+  }
+  return { _err: "Firebase AI service failed to initialize within 10 seconds. Check browser console for network or CORS errors." };
+}
+
+// ===== EXAMPLE VIEW =====
+function ExampleView(props) {
+  var job = props.job;
+  var topic = props.topic || "";
+  var [result, setResult] = useState(null);
+  var [loading, setLoading] = useState(false);
+  var [err, setErr] = useState("");
+  var [count, setCount] = useState(0);
+
+  async function generate() {
+    setLoading(true);
+    setResult(null);
+    setErr("");
+    var vary = count > 0 ? " Give a DIFFERENT example than before, variation " + (count + 1) + "." : "";
+    var topicNote = topic ? " Focus on how they use " + topic + "." : "";
+    var tasks = safeTasks(job.tasks);
+    var stds = (job.content || []).map(function(c) { return c.standard; }).join(", ");
+    // Figure out grade level from the first content standard
+    var gradeLevel = "middle or high school";
+    var firstStd = (job.content && job.content[0]) ? job.content[0].standard : "";
+    if (firstStd) {
+      var gradeMatch = firstStd.match(/^(\d)/);
+      if (gradeMatch) {
+        var g = parseInt(gradeMatch[1]);
+        if (g <= 5) gradeLevel = "upper elementary (grade " + g + ")";
+        else if (g <= 8) gradeLevel = "middle school (grade " + g + ")";
+        else gradeLevel = "high school";
+      } else if (firstStd.match(/^[A-Z]/)) {
+        gradeLevel = "high school";
+      }
+    }
+    var prompt = "Job: " + job.title + " in Hawaii." + vary + topicNote +
+      "\nTasks: " + tasks +
+      "\nStandards: " + stds +
+      "\n\nIMPORTANT: Write the scenario at a " + gradeLevel + " reading level. Use vocabulary and sentence complexity appropriate for that grade. Keep the scenario to EXACTLY 6 sentences or fewer." +
+      "\n\nReturn ONLY a JSON object (no other text) with keys: scenario (string, max 6 sentences at " + gradeLevel + " reading level), content_highlight (object with standard, name, how), practices (array of 2-3 objects with id, name, how)";
+    var d = await callClaude(SYS_SCENARIO, prompt);
+    if (d && d._err) {
+      setErr(d._err);
+    } else if (d && d.scenario) {
+      setResult(d);
+      setCount(function(c) { return c + 1; });
+    } else {
+      setErr("Unexpected response");
+      console.log("Bad response:", d);
+    }
+    setLoading(false);
+  }
+
+  // Auto-generate on first mount
+  useEffect(function() { generate(); }, []);
+
+  return <div style={{ marginTop: 12 }}>
+    {loading && <Spin msg="Creating a real-world example..." />}
+    {result && <div style={{ animation: "fadeIn 0.3s ease" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <h3 style={{ fontSize: 13, textTransform: "uppercase", letterSpacing: 1.2, color: "#1a7a5c", fontWeight: 700, margin: 0 }}>Real-World Example</h3>
+        <Tag label="AI-Generated" />
+      </div>
+      <div style={{ background: "#f0faf5", borderLeft: "4px solid #1a7a5c", borderRadius: "0 8px 8px 0", padding: "14px 16px", marginBottom: 14 }}>
+        <p style={{ fontSize: 14, color: "#3a3226", lineHeight: 1.7, margin: 0 }}>{result.scenario}</p>
+      </div>
+      {result.content_highlight && <div style={{ background: "#fff", border: "1px solid #e8e0d4", borderRadius: 8, padding: "10px 14px", marginBottom: 10 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#1a7a5c", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 4 }}>Content in Action</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ background: "#1a7a5c", color: "#fff", fontSize: 11, fontWeight: 700, padding: "2px 7px", borderRadius: 4, fontFamily: "monospace" }}>{result.content_highlight.standard}</span>
+          <span style={{ fontSize: 13, color: "#3a3226" }}>{result.content_highlight.how}</span>
+        </div>
+      </div>}
+      {result.practices && result.practices.length > 0 && <div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#7d3c98", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 6 }}>Practices at Work</div>
+        {result.practices.map(function(pc, i) {
+          return <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 8 }}>
+            <Badge id={pc.id} /><span style={{ fontSize: 13, color: "#5a4e40", lineHeight: 1.5 }}>{pc.how}</span>
+          </div>;
+        })}
+      </div>}
+      <button onClick={generate} disabled={loading} style={{ marginTop: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, border: "1.5px solid #1a7a5c", borderRadius: 6, background: "transparent", color: "#1a7a5c", cursor: "pointer", fontFamily: "inherit" }}>
+        Try a different example
+      </button>
+    </div>}
+    {err && !loading && <div style={{ padding: 16, background: "#fdf2f2", borderRadius: 8, border: "1px solid #f0d0d0" }}>
+      <p style={{ color: "#922", fontSize: 13, margin: "0 0 6px" }}>Could not generate example.</p>
+      <p style={{ color: "#a88", fontSize: 11, margin: "0 0 8px", fontFamily: "monospace", wordBreak: "break-all" }}>{err}</p>
+      <button onClick={generate} style={{ padding: "6px 14px", fontSize: 13, fontWeight: 600, border: "1.5px solid #922", borderRadius: 6, background: "transparent", color: "#922", cursor: "pointer", fontFamily: "inherit" }}>Try again</button>
+    </div>}
+  </div>;
+}
+
+// ===== TASK VIEW =====
+function TaskView(props) {
+  var job = props.job;
+  var topic = props.topic || "";
+  var [selStd, setSelStd] = useState(null);
+  var [result, setResult] = useState(null);
+  var [loading, setLoading] = useState(false);
+  var [err, setErr] = useState("");
+
+  async function generate(std) {
+    setLoading(true);
+    setResult(null);
+    setErr("");
+    var topicNote = topic ? " The task should involve " + topic + "." : "";
+    // Determine grade level from the standard
+    var gradeLevel = "secondary";
+    var gradeMatch = std.standard.match(/^(\d)/);
+    if (gradeMatch) {
+      var g = parseInt(gradeMatch[1]);
+      if (g <= 5) gradeLevel = "upper elementary (grade " + g + ")";
+      else if (g <= 8) gradeLevel = "middle school (grade " + g + ")";
+      else gradeLevel = "high school";
+    } else if (std.standard.match(/^[A-Z]/)) {
+      gradeLevel = "high school";
+    }
+    var prompt = "Job: " + job.title + " in Hawaii." + topicNote +
+      "\nStandard: " + std.standard + " (" + std.name + ")" +
+      "\nKnowledge area: " + std.source_knowledge +
+      "\nTasks: " + safeTasks(job.tasks) +
+      "\n\nIMPORTANT: This task is for " + gradeLevel + " students. Write ALL text (context, task, questions) at that reading level." +
+      "\n\nReturn ONLY a JSON object (no other text) with keys: task_title (string), context (string, 1-2 sentences), task (string, 3-5 sentences with specific numbers, open-ended, low floor high ceiling), extensions (string), discussion_questions (array of 3 strings: justify reasoning, compare strategies, connect representations), practices_engaged (array of 2-3 strings like MP.1)";
+    var d = await callClaude(SYS_TASK, prompt);
+    if (d && d._err) {
+      setErr(d._err);
+    } else if (d && (d.task || d.task_title)) {
+      setResult(d);
+    } else {
+      setErr("Unexpected response");
+      console.log("Bad response:", d);
+    }
+    setLoading(false);
+  }
+
+  if (!selStd) {
+    var standards = (job.content || []).filter(function(c) { return c.standard !== "MP.5"; });
+    return <div style={{ marginTop: 12 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "#7d3c98", marginBottom: 10 }}>Which content standard would you like a task for?</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {standards.map(function(c, i) {
+          return <button key={i} onClick={function() { setSelStd(c); generate(c); }}
+            style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", border: "2px solid #e8e0d4", borderRadius: 8, background: "#fff", cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}>
+            <span style={{ background: "#7d3c98", color: "#fff", fontSize: 11, fontWeight: 700, padding: "2px 7px", borderRadius: 4, fontFamily: "monospace", flexShrink: 0 }}>{c.standard}</span>
+            <span style={{ fontSize: 13, color: "#3a3226" }}>{c.name}</span>
+          </button>;
+        })}
+      </div>
+    </div>;
+  }
+
+  var dqLabels = ["Justify Your Reasoning", "Compare Strategies", "Connect Representations"];
+
+  return <div style={{ marginTop: 12 }}>
+    <button onClick={function() { setSelStd(null); setResult(null); setErr(""); }} style={{ fontSize: 12, color: "#7d3c98", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", marginBottom: 8 }}>Pick a different standard</button>
+    {loading && <Spin msg="Crafting a rich math task..." />}
+    {result && <div style={{ animation: "fadeIn 0.3s ease" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+        <h3 style={{ fontSize: 13, textTransform: "uppercase", letterSpacing: 1.2, color: "#7d3c98", fontWeight: 700, margin: 0 }}>Math Task</h3>
+        <span style={{ background: "#7d3c98", color: "#fff", fontSize: 11, fontWeight: 700, padding: "2px 7px", borderRadius: 4, fontFamily: "monospace" }}>{selStd.standard}</span>
+        <Tag label="AI-Generated" />
+      </div>
+      <div style={{ background: "#f8f0ff", borderLeft: "4px solid #7d3c98", borderRadius: "0 10px 10px 0", padding: "16px 18px", marginBottom: 16 }}>
+        {result.task_title && <div style={{ fontSize: 16, fontWeight: 700, color: "#3a3226", marginBottom: 8 }}>{result.task_title}</div>}
+        {result.context && <p style={{ fontSize: 13, color: "#6b5e50", lineHeight: 1.5, margin: "0 0 10px", fontStyle: "italic" }}>{result.context}</p>}
+        {result.task && <p style={{ fontSize: 14, color: "#3a3226", lineHeight: 1.7, margin: "0 0 10px" }}>{result.task}</p>}
+        {result.extensions && <div style={{ background: "rgba(125,60,152,0.08)", borderRadius: 6, padding: "8px 12px", marginTop: 8 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#7d3c98", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 3 }}>Extension</div>
+          <p style={{ fontSize: 13, color: "#5a4e40", lineHeight: 1.5, margin: 0 }}>{result.extensions}</p>
+        </div>}
+      </div>
+      {result.discussion_questions && result.discussion_questions.length > 0 && <div style={{ background: "#fff", border: "2px solid #c4883a", borderRadius: 10, padding: "16px 18px", marginBottom: 14 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#c4883a", textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Discussion Questions for Teachers</div>
+        {result.discussion_questions.map(function(q, i) {
+          return <div key={i} style={{ marginBottom: i < 2 ? 12 : 0 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#c4883a", marginBottom: 3 }}>{dqLabels[i] || "Question"}</div>
+            <p style={{ fontSize: 14, color: "#3a3226", lineHeight: 1.6, margin: 0, paddingLeft: 4 }}>{q}</p>
+          </div>;
+        })}
+      </div>}
+      {result.practices_engaged && result.practices_engaged.length > 0 && <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+        <span style={{ fontSize: 11, color: "#6b5e50", fontWeight: 600 }}>Practices engaged:</span>
+        {result.practices_engaged.map(function(p) { return <Badge key={p} id={p} />; })}
+      </div>}
+      <button onClick={function() { generate(selStd); }} disabled={loading} style={{ padding: "8px 16px", fontSize: 13, fontWeight: 600, border: "1.5px solid #7d3c98", borderRadius: 6, background: "transparent", color: "#7d3c98", cursor: "pointer", fontFamily: "inherit" }}>
+        Generate a different task
+      </button>
+    </div>}
+    {err && !loading && <div style={{ padding: 16, background: "#fdf2f2", borderRadius: 8, border: "1px solid #f0d0d0" }}>
+      <p style={{ color: "#922", fontSize: 13, margin: "0 0 6px" }}>Could not generate task.</p>
+      <p style={{ color: "#a88", fontSize: 11, margin: "0 0 8px", fontFamily: "monospace", wordBreak: "break-all" }}>{err}</p>
+      <button onClick={function() { generate(selStd); }} style={{ padding: "6px 14px", fontSize: 13, fontWeight: 600, border: "1.5px solid #922", borderRadius: 6, background: "transparent", color: "#922", cursor: "pointer", fontFamily: "inherit" }}>Try again</button>
+    </div>}
+  </div>;
+}
+
+// ===== JOB PANEL =====
+function JobPanel() {
+  var [query, setQuery] = useState("");
+  var [selected, setSelected] = useState(null);
+  var [showDrop, setShowDrop] = useState(false);
+  var [activeView, setActiveView] = useState(null);
+
+  var results = useMemo(function() {
+    return query.length >= 2 ? fuzzySearch(query, DATA.jobs) : [];
+  }, [query]);
+
+  function pick(j) {
+    setSelected(j);
+    setQuery(j.title);
+    setShowDrop(false);
+    setActiveView(null);
+  }
+
+  return <div>
+    <div style={{ position: "relative", marginBottom: 16 }}>
+      <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#8b7355", marginBottom: 5, textTransform: "uppercase", letterSpacing: 1 }}>What career are you curious about?</label>
+      <input value={query}
+        onChange={function(e) { setQuery(e.target.value); setShowDrop(true); setSelected(null); setActiveView(null); }}
+        onFocus={function() { setShowDrop(true); }}
+        placeholder="Type anything: boat mechanic, nurse, coding, hotel, fix things..."
+        style={{ width: "100%", padding: "11px 14px", fontSize: 15, border: "2px solid #d4c9b8", borderRadius: 8, background: "#faf7f2", color: "#3a3226", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }}
+      />
+      {showDrop && query.length >= 2 && !selected && <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "2px solid #d4c9b8", borderTop: "none", borderRadius: "0 0 8px 8px", maxHeight: 300, overflowY: "auto", zIndex: 10, boxShadow: "0 8px 20px rgba(0,0,0,0.08)" }}>
+        {results.length === 0 && <div style={{ padding: 14, color: "#8b7355", fontSize: 13 }}>Try different words: a job title, industry, or what the work involves</div>}
+        {results.map(function(j) {
+          return <button key={j.soc} onClick={function() { pick(j); }}
+            style={{ display: "flex", justifyContent: "space-between", width: "100%", padding: "9px 14px", border: "none", background: "transparent", cursor: "pointer", fontSize: 13, fontFamily: "inherit", color: "#3a3226", borderBottom: "1px solid #f0ebe3", textAlign: "left" }}>
+            <span style={{ fontWeight: 600 }}>{j.title}</span>
+            <span style={{ color: "#8b7355", fontSize: 11, flexShrink: 0, marginLeft: 8 }}>{(j.jobs || 0).toLocaleString()} jobs / ${((j.earn || 0) / 1000).toFixed(0)}K</span>
+          </button>;
+        })}
+      </div>}
+    </div>
+
+    {selected && <div style={{ animation: "fadeIn 0.3s ease" }}>
+      {/* Job stats header */}
+      <div style={{ background: "#f5f0e8", borderRadius: 10, padding: "12px 16px", marginBottom: 18, display: "flex", flexWrap: "wrap", gap: 16, alignItems: "center" }}>
+        <div style={{ flex: 1, minWidth: 180 }}>
+          <div style={{ fontSize: 17, fontWeight: 700, color: "#3a3226" }}>{selected.title}</div>
+          <div style={{ fontSize: 12, color: "#8b7355", marginTop: 2 }}>{selected.edu}</div>
+        </div>
+        <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+          <div><div style={{ fontSize: 10, color: "#8b7355", textTransform: "uppercase", letterSpacing: 0.5 }}>HI Jobs</div><div style={{ fontSize: 15, fontWeight: 700, color: "#1a7a5c" }}>{(selected.jobs || 0).toLocaleString()}</div></div>
+          <div><div style={{ fontSize: 10, color: "#8b7355", textTransform: "uppercase", letterSpacing: 0.5 }}>Median Pay</div><div style={{ fontSize: 15, fontWeight: 700, color: "#1a7a5c" }}>${((selected.earn || 0) / 1000).toFixed(0)}K</div></div>
+          <div><div style={{ fontSize: 10, color: "#8b7355", textTransform: "uppercase", letterSpacing: 0.5 }}>Math Importance</div><Bar value={selected.math_imp || 0} /></div>
+        </div>
+      </div>
+
+      {/* Content Standards */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+        <h3 style={{ fontSize: 13, textTransform: "uppercase", letterSpacing: 1.2, color: "#1a7a5c", fontWeight: 700, margin: 0 }}>Math Content Standards</h3>
+        <Tag label="O*NET Data" />
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 22 }}>
+        {(selected.content || []).map(function(c, i) {
+          return <div key={i} style={{ background: "#fff", border: "1px solid #e8e0d4", borderRadius: 8, padding: "10px 14px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span style={{ background: "#1a7a5c", color: "#fff", fontSize: 11, fontWeight: 700, padding: "2px 7px", borderRadius: 4, fontFamily: "monospace" }}>{c.standard}</span>
+              <span style={{ fontWeight: 600, fontSize: 13, color: "#3a3226" }}>{c.name}</span>
+            </div>
+            <div style={{ fontSize: 11, color: "#a0937f", marginTop: 4 }}>via O*NET Knowledge: <em>{c.source_knowledge}</em> ({c.knowledge_importance}/5)</div>
+          </div>;
+        })}
+      </div>
+
+      {/* Practices */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+        <h3 style={{ fontSize: 13, textTransform: "uppercase", letterSpacing: 1.2, color: "#7d3c98", fontWeight: 700, margin: 0 }}>Mathematical Practices</h3>
+        <Tag label="O*NET Skills + Abilities + Activities" />
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 22 }}>
+        {(selected.practices || []).map(function(p, i) {
+          return <div key={i} style={{ background: "#fff", border: "1px solid #e8e0d4", borderRadius: 8, padding: "10px 14px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+              <Badge id={p.id} /><span style={{ fontWeight: 600, fontSize: 13, color: "#3a3226" }}>{p.name}</span><Bar value={p.score || 0} />
+            </div>
+            <div style={{ fontSize: 11, color: "#a0937f" }}>Evidence: {(p.top_evidence || []).join(", ")}</div>
+          </div>;
+        })}
+      </div>
+
+      {/* Tasks */}
+      {selected.tasks && selected.tasks.length > 0 && <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+          <h3 style={{ fontSize: 13, textTransform: "uppercase", letterSpacing: 1.2, color: "#c4883a", fontWeight: 700, margin: 0 }}>Actual Math-Related Job Tasks</h3>
+          <Tag label="O*NET Task Statements" />
+        </div>
+        <div style={{ background: "#fff", border: "1px solid #e8e0d4", borderRadius: 8, padding: "10px 14px", marginBottom: 22 }}>
+          {selected.tasks.map(function(t, i) {
+            return <div key={i} style={{ fontSize: 13, color: "#5a4e40", lineHeight: 1.55, padding: "5px 0 5px 14px", borderBottom: i < selected.tasks.length - 1 ? "1px solid #f5f0e8" : "none", position: "relative" }}>
+              <span style={{ position: "absolute", left: 0, color: "#c4883a", fontSize: 12 }}>&#9656;</span>{t}
+            </div>;
+          })}
+        </div>
+      </div>}
+
+      {/* Action Buttons - always visible */}
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+        <button onClick={function() { setActiveView(activeView === "example" ? null : "example"); }}
+          style={{ flex: 1, minWidth: 200, padding: "14px 16px", fontSize: 14, fontWeight: 600, border: activeView === "example" ? "2px solid #1a7a5c" : "2px solid #bcd5c8", borderRadius: 10, background: activeView === "example" ? "#e6f5ed" : "#f0faf5", color: "#1a7a5c", cursor: "pointer", fontFamily: "inherit", textAlign: "left", lineHeight: 1.3 }}>
+          Want to see a real-world example?
+          <div style={{ fontSize: 11, fontWeight: 400, color: "#6b9e8a", marginTop: 2 }}>See this math in action on the job</div>
+        </button>
+        <button onClick={function() { setActiveView(activeView === "task" ? null : "task"); }}
+          style={{ flex: 1, minWidth: 200, padding: "14px 16px", fontSize: 14, fontWeight: 600, border: activeView === "task" ? "2px solid #7d3c98" : "2px solid #c9b3d9", borderRadius: 10, background: activeView === "task" ? "#efe6f7" : "#f8f0ff", color: "#7d3c98", cursor: "pointer", fontFamily: "inherit", textAlign: "left", lineHeight: 1.3 }}>
+          Want a math problem?
+          <div style={{ fontSize: 11, fontWeight: 400, color: "#a07dc0", marginTop: 2 }}>Get a rich task for classroom use</div>
+        </button>
+      </div>
+
+      {activeView === "example" && <ExampleView key={"ex-" + selected.soc} job={selected} />}
+      {activeView === "task" && <TaskView key={"task-" + selected.soc} job={selected} />}
+    </div>}
+  </div>;
+}
+
+// ===== TOPIC PANEL =====
+function TopicPanel() {
+  var [activeCat, setActiveCat] = useState("");
+  var [topic, setTopic] = useState("");
+  var [selectedJob, setSelectedJob] = useState(null);
+  var [activeView, setActiveView] = useState(null);
+
+  var topicData = topic ? DATA.topics[topic] : null;
+
+  function selectTopic(t) {
+    setTopic(t);
+    setSelectedJob(null);
+    setActiveView(null);
+  }
+
+  function selectCareer(career) {
+    if (selectedJob && selectedJob.soc === career.soc) {
+      setSelectedJob(null);
+      setActiveView(null);
+      return;
+    }
+    // Find full job data
+    var full = null;
+    for (var i = 0; i < DATA.jobs.length; i++) {
+      if (DATA.jobs[i].soc === career.soc) { full = DATA.jobs[i]; break; }
+    }
+    setSelectedJob(full);
+    setActiveView(null);
+  }
+
+  return <div>
+    <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#8b7355", marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>1. Choose a category</label>
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
+      {TOPIC_CATEGORIES.map(function(cat) {
+        var isActive = activeCat === cat.name;
+        return <button key={cat.name} onClick={function() { setActiveCat(isActive ? "" : cat.name); if (!isActive) { setTopic(""); setSelectedJob(null); setActiveView(null); } }}
+          style={{ padding: "7px 14px", fontSize: 13, fontWeight: 600, border: "2px solid " + (isActive ? cat.color : "#d4c9b8"), borderRadius: 8, cursor: "pointer", fontFamily: "inherit", background: isActive ? cat.color : "#fff", color: isActive ? "#fff" : "#5a4e40", transition: "all 0.15s" }}>{cat.name}</button>;
+      })}
+    </div>
+    {activeCat && <div>
+      <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#8b7355", marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>2. Choose a topic</label>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 14 }}>
+        {(TOPIC_CATEGORIES.find(function(cat) { return cat.name === activeCat; }) || {topics:[]}).topics.map(function(t) {
+          var hasTopic = !!DATA.topics[t];
+          return <button key={t} onClick={function() { if (hasTopic) selectTopic(t); }}
+            style={{ padding: "5px 10px", fontSize: 12, border: topic === t ? "1.5px solid #1a7a5c" : "1.5px solid #d4c9b8", borderRadius: 16, cursor: hasTopic ? "pointer" : "default", fontFamily: "inherit", background: topic === t ? "#1a7a5c" : "#fff", color: topic === t ? "#fff" : hasTopic ? "#5a4e40" : "#ccc", transition: "all 0.15s", opacity: hasTopic ? 1 : 0.5 }}>{t}</button>;
+        })}
+      </div>
+    </div>}
+    {topicData && <div style={{ animation: "fadeIn 0.3s ease" }}>
+      <div style={{ background: "#f5f0e8", borderRadius: 10, padding: "12px 16px", marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#3a3226" }}>Standards:</span>
+          {(topicData.standards || []).map(function(s) {
+            return <span key={s} style={{ background: "#1a7a5c", color: "#fff", fontSize: 11, fontWeight: 700, padding: "2px 7px", borderRadius: 4, fontFamily: "monospace" }}>{s}</span>;
+          })}
+          <Tag label="Common Core" />
+        </div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+        <h3 style={{ fontSize: 13, textTransform: "uppercase", letterSpacing: 1.2, color: "#1a7a5c", fontWeight: 700, margin: 0 }}>Hawai'i Careers Using This Math</h3>
+        <Tag label="Lightcast + O*NET" />
+      </div>
+      <div style={{ marginBottom: 10, fontSize: 13, color: "#8b7355" }}>Select a career to see how {topic} connects to the job:</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {(topicData.jobs || []).map(function(c, i) {
+          var isSelected = selectedJob && selectedJob.soc === c.soc;
+          return <button key={c.soc || i} onClick={function() { selectCareer(c); }}
+            style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", border: isSelected ? "2px solid #1a7a5c" : "1.5px solid #e8e0d4", borderRadius: 8, background: isSelected ? "#e6f5ed" : "#fff", cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: "#3a3226" }}>{c.title}</div>
+              <div style={{ fontSize: 11, color: "#8b7355", marginTop: 2 }}>{c.edu}</div>
+            </div>
+            <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#1a7a5c" }}>{(c.jobs || 0).toLocaleString()} jobs</div>
+              <div style={{ fontSize: 11, color: "#8b7355" }}>${c.earn ? ((c.earn / 1000).toFixed(0) + "K") : "n/a"}</div>
+            </div>
+          </button>;
+        })}
+      </div>
+
+      {/* Full job detail view when a career is selected */}
+      {selectedJob && <div style={{ marginTop: 20, animation: "fadeIn 0.3s ease" }}>
+        {/* Job header */}
+        <div style={{ background: "#f5f0e8", borderRadius: 10, padding: "12px 16px", marginBottom: 18, display: "flex", flexWrap: "wrap", gap: 16, alignItems: "center" }}>
+          <div style={{ flex: 1, minWidth: 180 }}>
+            <div style={{ fontSize: 17, fontWeight: 700, color: "#3a3226" }}>{selectedJob.title}</div>
+            <div style={{ fontSize: 12, color: "#8b7355", marginTop: 2 }}>{selectedJob.edu}</div>
+          </div>
+          <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+            <div><div style={{ fontSize: 10, color: "#8b7355", textTransform: "uppercase", letterSpacing: 0.5 }}>HI Jobs</div><div style={{ fontSize: 15, fontWeight: 700, color: "#1a7a5c" }}>{(selectedJob.jobs || 0).toLocaleString()}</div></div>
+            <div><div style={{ fontSize: 10, color: "#8b7355", textTransform: "uppercase", letterSpacing: 0.5 }}>Median Pay</div><div style={{ fontSize: 15, fontWeight: 700, color: "#1a7a5c" }}>${((selectedJob.earn || 0) / 1000).toFixed(0)}K</div></div>
+            <div><div style={{ fontSize: 10, color: "#8b7355", textTransform: "uppercase", letterSpacing: 0.5 }}>Math Importance</div><Bar value={selectedJob.math_imp || 0} /></div>
+          </div>
+        </div>
+
+        {/* Content Standards */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+          <h3 style={{ fontSize: 13, textTransform: "uppercase", letterSpacing: 1.2, color: "#1a7a5c", fontWeight: 700, margin: 0 }}>Math Content Standards</h3>
+          <Tag label="O*NET Data" />
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 22 }}>
+          {(selectedJob.content || []).map(function(c, i) {
+            return <div key={i} style={{ background: "#fff", border: "1px solid #e8e0d4", borderRadius: 8, padding: "10px 14px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span style={{ background: "#1a7a5c", color: "#fff", fontSize: 11, fontWeight: 700, padding: "2px 7px", borderRadius: 4, fontFamily: "monospace" }}>{c.standard}</span>
+                <span style={{ fontWeight: 600, fontSize: 13, color: "#3a3226" }}>{c.name}</span>
+              </div>
+              <div style={{ fontSize: 11, color: "#a0937f", marginTop: 4 }}>via O*NET Knowledge: <em>{c.source_knowledge}</em> ({c.knowledge_importance}/5)</div>
+            </div>;
+          })}
+        </div>
+
+        {/* Practices */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+          <h3 style={{ fontSize: 13, textTransform: "uppercase", letterSpacing: 1.2, color: "#7d3c98", fontWeight: 700, margin: 0 }}>Mathematical Practices</h3>
+          <Tag label="O*NET Skills + Abilities + Activities" />
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 22 }}>
+          {(selectedJob.practices || []).map(function(p, i) {
+            return <div key={i} style={{ background: "#fff", border: "1px solid #e8e0d4", borderRadius: 8, padding: "10px 14px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                <Badge id={p.id} /><span style={{ fontWeight: 600, fontSize: 13, color: "#3a3226" }}>{p.name}</span><Bar value={p.score || 0} />
+              </div>
+              <div style={{ fontSize: 11, color: "#a0937f" }}>Evidence: {(p.top_evidence || []).join(", ")}</div>
+            </div>;
+          })}
+        </div>
+
+        {/* Tasks */}
+        {selectedJob.tasks && selectedJob.tasks.length > 0 && <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <h3 style={{ fontSize: 13, textTransform: "uppercase", letterSpacing: 1.2, color: "#c4883a", fontWeight: 700, margin: 0 }}>Actual Math-Related Job Tasks</h3>
+            <Tag label="O*NET Task Statements" />
+          </div>
+          <div style={{ background: "#fff", border: "1px solid #e8e0d4", borderRadius: 8, padding: "10px 14px", marginBottom: 22 }}>
+            {selectedJob.tasks.map(function(t, i) {
+              return <div key={i} style={{ fontSize: 13, color: "#5a4e40", lineHeight: 1.55, padding: "5px 0 5px 14px", borderBottom: i < selectedJob.tasks.length - 1 ? "1px solid #f5f0e8" : "none", position: "relative" }}>
+                <span style={{ position: "absolute", left: 0, color: "#c4883a", fontSize: 12 }}>&#9656;</span>{t}
+              </div>;
+            })}
+          </div>
+        </div>}
+
+        {/* Action Buttons */}
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+          <button onClick={function() { setActiveView(activeView === "example" ? null : "example"); }}
+            style={{ flex: 1, minWidth: 200, padding: "14px 16px", fontSize: 14, fontWeight: 600, border: activeView === "example" ? "2px solid #1a7a5c" : "2px solid #bcd5c8", borderRadius: 10, background: activeView === "example" ? "#e6f5ed" : "#f0faf5", color: "#1a7a5c", cursor: "pointer", fontFamily: "inherit", textAlign: "left", lineHeight: 1.3 }}>
+            Want to see a real-world example?
+            <div style={{ fontSize: 11, fontWeight: 400, color: "#6b9e8a", marginTop: 2 }}>See {topic} in action on the job</div>
+          </button>
+          <button onClick={function() { setActiveView(activeView === "task" ? null : "task"); }}
+            style={{ flex: 1, minWidth: 200, padding: "14px 16px", fontSize: 14, fontWeight: 600, border: activeView === "task" ? "2px solid #7d3c98" : "2px solid #c9b3d9", borderRadius: 10, background: activeView === "task" ? "#efe6f7" : "#f8f0ff", color: "#7d3c98", cursor: "pointer", fontFamily: "inherit", textAlign: "left", lineHeight: 1.3 }}>
+            Want a math problem?
+            <div style={{ fontSize: 11, fontWeight: 400, color: "#a07dc0", marginTop: 2 }}>Get a rich task about {topic}</div>
+          </button>
+        </div>
+
+        {activeView === "example" && <ExampleView key={"tex-" + selectedJob.soc} job={selectedJob} topic={topic} />}
+        {activeView === "task" && <TaskView key={"ttask-" + selectedJob.soc} job={selectedJob} topic={topic} />}
+      </div>}
+    </div>}
+  </div>;
+}
+
+// ===== MAIN APP =====
+function App() {
+  var [mode, setMode] = useState("job");
+
+  return <div style={{ fontFamily: "'Source Serif 4', Georgia, serif", maxWidth: 700, margin: "0 auto", padding: "0 16px" }}>
+    <style>{[
+      "@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap');",
+      "@keyframes spin{to{transform:rotate(360deg)}}",
+      "@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}",
+      "*{box-sizing:border-box}",
+      "button:hover{opacity:0.9}"
+    ].join("\n")}</style>
+    <header style={{ textAlign: "center", padding: "24px 0 16px" }}>
+      <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: 3, color: "#1a7a5c", fontWeight: 700, marginBottom: 3 }}>Hawai'i Math Connections</div>
+      <h1 style={{ fontSize: 24, fontWeight: 300, color: "#3a3226", margin: "2px 0 6px", lineHeight: 1.2 }}>Where does this math <em>go</em>?</h1>
+      <p style={{ fontSize: 13, color: "#8b7355", maxWidth: 480, margin: "0 auto 12px" }}>Explore real connections between secondary math and Hawai'i careers, grounded in workforce and occupational data.</p>
+      <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#f0faf5", border: "1px solid #bcd5c8", borderRadius: 16, padding: "4px 12px", fontSize: 11, color: "#1a7a5c", fontWeight: 600 }}>
+        <span>⚡ Powered by Google Firebase AI (Gemini)</span>
+      </div>
+    </header>
+    <div style={{ display: "flex", marginBottom: 20, borderRadius: 8, overflow: "hidden", border: "2px solid #d4c9b8" }}>
+      <button onClick={function() { setMode("job"); }} style={{ flex: 1, padding: "12px 8px", border: "none", cursor: "pointer", fontSize: 13, fontWeight: mode === "job" ? 700 : 400, fontFamily: "inherit", background: mode === "job" ? "#1a7a5c" : "#faf7f2", color: mode === "job" ? "#fff" : "#6b5e50" }}>Start with a Career</button>
+      <button onClick={function() { setMode("math"); }} style={{ flex: 1, padding: "12px 8px", border: "none", cursor: "pointer", fontSize: 13, fontWeight: mode === "math" ? 700 : 400, fontFamily: "inherit", background: mode === "math" ? "#1a7a5c" : "#faf7f2", color: mode === "math" ? "#fff" : "#6b5e50" }}>Start with a Math Topic</button>
+    </div>
+    {mode === "job" ? <JobPanel /> : <TopicPanel />}
+    <footer style={{ textAlign: "center", padding: "28px 0 16px" }}>
+      <div style={{ fontSize: 10, color: "#b5a898", lineHeight: 1.6 }}>
+        <strong>Data:</strong> Lightcast Hawai'i workforce data, O*NET 30.2, Common Core Standards. Task design informed by Smith and Stein (1998).<br />
+        <span style={{ display: "inline-flex", gap: 6, marginTop: 4, flexWrap: "wrap", justifyContent: "center" }}>
+          <Tag label="O*NET Data" /> <Tag label="Lightcast" /> = from source data
+          <Tag label="AI-Generated" /> = Gemini via Firebase Vertex AI
+        </span>
+      </div>
+    </footer>
+  </div>;
+}
 
 
-  console.log("Firebase App Name:", app.name);                     // Output: "[DEFAULT]"
-  console.log("Connected Project ID:", app.options.projectId);     // Output: "career-navigator-cabc7"
-  console.log("Full Configuration:", app.options);
-
-  console.log("Gen-AI Output:", response.text());
-</script>
+    ReactDOM.render(React.createElement(App), document.getElementById("root"));
+  </script>
+</body>
+</html>
