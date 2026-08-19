@@ -1,0 +1,1485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Educational Dataset Metadata Explorer</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- PapaParse for Google Sheet CSV parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            900: '#1e3a8a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            background-color: #f8fafc;
+            color: #0f172a;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+        }
+        .modal-backdrop {
+            background-color: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(4px);
+        }
+        .size-badge-small {
+            background-color: #dcfce7;
+            color: #15803d;
+            border: 1px solid #bbf7d0;
+        }
+        .size-badge-medium {
+            background-color: #fef9c3;
+            color: #a16207;
+            border: 1px solid #fef08a;
+        }
+        .size-badge-large {
+            background-color: #fee2e2;
+            color: #b91c1c;
+            border: 1px solid #fecaca;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans antialiased text-slate-800">
+
+    <!-- Navbar Header -->
+    <header class="sticky top-0 z-30 bg-white/95 border-b border-slate-200 backdrop-blur shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="bg-blue-600 text-white p-2.5 rounded-xl shadow-md flex items-center justify-center">
+                    <i class="fa-solid fa-database text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight text-slate-900">Dataset Explorer</h1>
+                    <p class="text-xs text-slate-500 font-medium">Educational Resources Catalog</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <!-- Sync / Fetch Status Badge -->
+                <div id="sync-status" class="flex items-center space-x-2 text-xs font-semibold px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                    <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse" id="sync-dot"></span>
+                    <span id="sync-text">Connecting to Sheet...</span>
+                </div>
+
+                <button onclick="fetchSpreadsheetData()" class="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 rounded-lg transition flex items-center gap-1.5 border border-slate-200" title="Reload data from Google Sheet">
+                    <i class="fa-solid fa-rotate-right" id="refresh-icon"></i>
+                    <span class="hidden sm:inline">Refresh Data</span>
+                </button>
+
+                <a href="https://docs.google.com/spreadsheets/d/1DaSMvHA3u4A67an5pI6MN6xBhbtLr61tdlvUXZOhLd0/edit?usp=sharing" target="_blank" class="px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition flex items-center gap-1.5 border border-blue-200">
+                    <i class="fa-solid fa-table"></i>
+                    <span class="hidden sm:inline">Google Sheet</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- Search and Filter Controls -->
+        <section class="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200 space-y-4">
+            <div class="flex flex-col md:flex-row gap-4">
+                <!-- Search Input -->
+                <div class="relative flex-grow">
+                    <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                    </div>
+                    <input type="text" id="search-input" oninput="handleSearchFilter()" placeholder="Search datasets by Name, Grade, Subject, or Description..." class="w-full pl-10 pr-10 py-3 bg-slate-50 text-sm font-medium rounded-xl border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                    <button id="clear-search" onclick="clearSearch()" class="hidden absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <!-- View Mode Toggle -->
+                <div class="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl border border-slate-200 self-start md:self-auto">
+                    <button id="btn-grid-view" onclick="setViewMode('grid')" class="px-3 py-2 text-xs font-semibold rounded-lg bg-white shadow-sm text-blue-600 transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-border-all"></i>
+                        <span>Grid</span>
+                    </button>
+                    <button id="btn-list-view" onclick="setViewMode('list')" class="px-3 py-2 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-list"></i>
+                        <span>List</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick Filter Dropdowns -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2 border-t border-slate-100">
+                <!-- Grade Filter -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 mb-1">Filter by Grade</label>
+                    <select id="grade-filter" onchange="handleSearchFilter()" class="w-full px-3 py-2 bg-slate-50 text-xs font-medium rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700">
+                        <option value="">All Grades</option>
+                    </select>
+                </div>
+
+                <!-- Subject Filter -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 mb-1">Filter by Subject</label>
+                    <select id="subject-filter" onchange="handleSearchFilter()" class="w-full px-3 py-2 bg-slate-50 text-xs font-medium rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700">
+                        <option value="">All Subjects</option>
+                    </select>
+                </div>
+
+                <!-- Size Filter -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 mb-1">Filter by Size</label>
+                    <select id="size-filter" onchange="handleSearchFilter()" class="w-full px-3 py-2 bg-slate-50 text-xs font-medium rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700">
+                        <option value="">All Sizes</option>
+                        <option value="Small">Small (&lt; 50 rows)</option>
+                        <option value="Medium">Medium (50 - 500 rows)</option>
+                        <option value="Large">Large (&gt; 500 rows)</option>
+                    </select>
+                </div>
+
+                <!-- Type Filter -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 mb-1">Filter by Type</label>
+                    <select id="type-filter" onchange="handleSearchFilter()" class="w-full px-3 py-2 bg-slate-50 text-xs font-medium rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700">
+                        <option value="">All Types</option>
+                        <option value="Model">Model</option>
+                        <option value="Distribution">Distribution</option>
+                    </select>
+                </div>
+            </div>
+        </section>
+
+        <!-- Results Counter & Active Filters Indicator -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1">
+            <div class="text-xs font-semibold text-slate-500">
+                Showing <span id="results-count" class="text-blue-600 font-bold">0</span> datasets
+                <span id="filter-active-label" class="hidden text-amber-600 ml-1 font-normal">(filtered)</span>
+            </div>
+            <button id="reset-filters-btn" onclick="resetAllFilters()" class="hidden text-xs text-blue-600 hover:text-blue-800 font-medium items-center gap-1">
+                <i class="fa-solid fa-rotate-left"></i> Reset all filters
+            </button>
+        </div>
+
+        <!-- Dataset Listing Container -->
+        <div id="dataset-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <!-- Dynamic Content populated via JS -->
+        </div>
+
+        <!-- Loading Spinner -->
+        <div id="loading-spinner" class="py-16 text-center space-y-3">
+            <i class="fa-solid fa-spinner fa-spin text-3xl text-blue-600"></i>
+            <p class="text-sm font-medium text-slate-500">Loading spreadsheet metadata...</p>
+        </div>
+
+        <!-- Empty State -->
+        <div id="empty-state" class="hidden py-16 text-center bg-white rounded-2xl border border-dashed border-slate-300 p-8 space-y-3">
+            <div class="w-12 h-12 rounded-full bg-slate-100 text-slate-400 mx-auto flex items-center justify-center text-xl">
+                <i class="fa-solid fa-folder-open"></i>
+            </div>
+            <h3 class="font-semibold text-slate-800 text-base">No datasets found</h3>
+            <p class="text-xs text-slate-500 max-w-md mx-auto">We couldn't find any datasets matching your search criteria or active filters. Try clearing filters or using different keywords.</p>
+            <button onclick="resetAllFilters()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition">
+                Reset Search Filters
+            </button>
+        </div>
+    </main>
+
+    <!-- Detailed Information Card Modal -->
+    <div id="dataset-modal" class="fixed inset-0 z-50 hidden modal-backdrop flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col transform transition-all overflow-hidden border border-slate-100 my-auto">
+            
+            <!-- Modal Header -->
+            <div class="p-5 sm:p-6 bg-slate-100/90 text-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/80 relative shrink-0">
+                <div class="space-y-1 pr-4">
+                    <div class="flex flex-wrap items-center gap-2 mb-2" id="modal-badges">
+                        <!-- Size Badge & Tags inserted via JS -->
+                    </div>
+                    <h2 id="modal-title" class="text-xl sm:text-2xl font-bold text-slate-900 leading-tight">Dataset Name</h2>
+                </div>
+                <div class="flex items-center space-x-3 shrink-0">
+                    <a id="modal-action-url" href="#" target="_blank" rel="noopener noreferrer" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold transition flex items-center gap-2 shadow-sm">
+                        <span>Access Dataset</span>
+                        <i class="fa-solid fa-up-right-from-square text-[10px]"></i>
+                    </a>
+                    <button onclick="closeModal()" class="text-slate-500 hover:text-slate-900 bg-white hover:bg-slate-200 border border-slate-200 w-8 h-8 rounded-full flex items-center justify-center transition focus:outline-none" title="Close">
+                        <i class="fa-solid fa-xmark text-sm"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Content (Scrollable) -->
+            <div class="p-5 sm:p-6 space-y-6 overflow-y-auto custom-scrollbar flex-grow bg-slate-50/50">
+                
+                <!-- Dedicated Action Row Directly Under Title Bar -->
+                <div id="modal-viz-action-row" class="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm space-y-3.5">
+                    <!-- Title & Description Header -->
+                    <div class="flex items-center gap-3">
+                        <div class="bg-emerald-100 text-emerald-700 p-2.5 rounded-xl text-sm flex items-center justify-center shrink-0">
+                            <i class="fa-solid fa-chart-column"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">Dataset Visualization</h3>
+                            <p class="text-xs text-slate-500">Generate interactive charts and statistical analysis</p>
+                        </div>
+                    </div>
+
+                    <!-- Underneath Controls: Dropdowns & Visualize Button -->
+                    <div class="flex items-center gap-3 shrink-0 flex-wrap sm:flex-nowrap pt-2 border-t border-slate-100">
+                        <!-- Distribution Type: Single Field Dropdown -->
+                        <div id="modal-dist-select-container" class="hidden items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
+                            <label for="modal-queryable-field-select" class="text-xs font-semibold text-slate-600 flex items-center gap-1">
+                                <i class="fa-solid fa-bolt text-amber-500 text-[11px]"></i>
+                                <span>Field:</span>
+                            </label>
+                            <select id="modal-queryable-field-select" class="bg-white px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800">
+                                <!-- Options populated via JS -->
+                            </select>
+                        </div>
+
+                        <!-- Model Type: X & Y Dropdowns (Without 'X-values' and 'Y-values' text) -->
+                        <div id="modal-model-select-container" class="hidden items-center gap-3 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200 flex-wrap sm:flex-nowrap">
+                            <div class="flex items-center gap-1.5">
+                                <label for="modal-model-x-select" class="text-xs font-bold text-purple-700 flex items-center gap-1">
+                                    <span>X:</span>
+                                </label>
+                                <select id="modal-model-x-select" class="bg-white px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500 text-slate-800">
+                                    <!-- Options populated via JS -->
+                                </select>
+                            </div>
+
+                            <div class="flex items-center gap-1.5 border-l border-slate-200 pl-3">
+                                <label for="modal-model-y-select" class="text-xs font-bold text-indigo-700 flex items-center gap-1">
+                                    <span>Y:</span>
+                                </label>
+                                <select id="modal-model-y-select" class="bg-white px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800">
+                                    <!-- Options populated via JS -->
+                                </select>
+                            </div>
+                        </div>
+
+                        <button id="modal-visualize-btn" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-chart-column"></i>
+                            <span>Visualize</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Description Section -->
+                <div class="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm space-y-2">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                        <i class="fa-solid fa-align-left text-blue-500"></i> Description
+                    </h3>
+                    <p id="modal-description" class="text-sm text-slate-700 leading-relaxed font-normal">Dataset description goes here...</p>
+                </div>
+
+                <!-- Meta Grid (Grade, Subject, Type) -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <!-- Grade Card -->
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-2">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                            <i class="fa-solid fa-graduation-cap text-indigo-500"></i> Grade Levels
+                        </h3>
+                        <div id="modal-grade-container" class="text-xs text-slate-700"></div>
+                    </div>
+
+                    <!-- Subject Card -->
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-2">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                            <i class="fa-solid fa-book-open text-emerald-500"></i> Subjects
+                        </h3>
+                        <div id="modal-subject-container" class="text-xs text-slate-700"></div>
+                    </div>
+
+                    <!-- Type Card -->
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-2">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                            <i class="fa-solid fa-layer-group text-purple-500"></i> Dataset Type
+                        </h3>
+                        <div id="modal-type-container" class="text-xs text-slate-700"></div>
+                    </div>
+                </div>
+
+                <!-- Educational Standards Section -->
+                <div class="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm space-y-2">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                        <i class="fa-solid fa-award text-amber-500"></i> Standards
+                    </h3>
+                    <div id="modal-standard-container" class="text-xs text-slate-700"></div>
+                </div>
+
+                <!-- Questions Section -->
+                <div class="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm space-y-2">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                        <i class="fa-solid fa-circle-question text-purple-500"></i> Questions
+                    </h3>
+                    <div id="modal-questions-container" class="text-xs text-slate-700"></div>
+                </div>
+
+                <!-- Dictionary Section -->
+                <div class="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm space-y-2">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                        <i class="fa-solid fa-spell-check text-rose-500"></i> Data Dictionary
+                    </h3>
+                    <div id="modal-dictionary-container" class="text-xs text-slate-700"></div>
+                </div>
+
+                <!-- Visualization Banner Section (Shown when CODAP URL exists) -->
+                <div id="modal-viz-section" class="hidden bg-gradient-to-r from-purple-50 to-indigo-50 p-4 sm:p-5 rounded-xl border border-purple-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div class="space-y-1">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-purple-700 flex items-center gap-2">
+                            <i class="fa-solid fa-chart-pie text-purple-600"></i> CODAP Data Visualization
+                        </h3>
+                        <p class="text-xs text-purple-900 leading-relaxed">Analyze and visualize this dataset interactively using CODAP (Common Online Data Analysis Platform).</p>
+                    </div>
+                    <a id="modal-viz-banner-btn" href="#" target="_blank" rel="noopener noreferrer" class="w-full sm:w-auto px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-semibold transition shrink-0 flex items-center justify-center gap-2 shadow-sm">
+                        <i class="fa-solid fa-chart-column"></i>
+                        <span>Launch CODAP</span>
+                        <i class="fa-solid fa-up-right-from-square text-[10px]"></i>
+                    </a>
+                </div>
+
+                <!-- Size Guide Reference -->
+                <div id="modal-size-info" class="bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-sm text-xs text-slate-500 font-medium flex items-center gap-2">
+                    <i class="fa-solid fa-info-circle text-blue-500"></i>
+                    <span>Size Guide: <strong>Small</strong> (&lt;50 rows), <strong>Medium</strong> (50-500 rows), <strong>Large</strong> (&gt;500 rows)</span>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Data State Variables
+        let allDatasets = [];
+        let filteredDatasets = [];
+        let viewMode = 'grid'; // 'grid' or 'list'
+
+        // Spreadsheet details
+        const SPREADSHEET_ID = '1DaSMvHA3u4A67an5pI6MN6xBhbtLr61tdlvUXZOhLd0';
+        const SHEET_NAME = 'Metadata';
+        
+        // Primary Google Sheet export endpoint (returns CSV format)
+        const CSV_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_NAME)}`;
+
+        // Backup fallback datasets in case Google Sheets API has CORS or internet connection restrictions
+        const SAMPLE_FALLBACK_DATA = [
+            {
+                "Name": "Elementary Math Assessment Scores 2023",
+                "Grade": "Grade 3, Grade 4, Grade 5",
+                "Subject": "Mathematics, Assessment",
+                "Standard": "CCSS.MATH.CONTENT.3.OA.A.1, CCSS.MATH.CONTENT.4.NBT.B.4, CCSS.MATH.CONTENT.5.NBT.A.1",
+                "Size": "Medium",
+                "Type": "Distribution",
+                "Description": "Comprehensive standardized math assessment results from spring 2023 for elementary students across district schools.",
+                "Questions": "What is the average proficiency rate across grades? | Are there significant disparities in multiplication accuracy between Grade 3 and Grade 4? | Which domains require curriculum revision?",
+                "Dictionary": "entity**{United States}: Target geographic area | student_id: Unique anonymized student identification code | grade_level: Academic grade level (3-5) | math_score*: Raw score on 100-point scale | proficiency_level*: Categorical evaluation (Below, Basic, Proficient, Advanced) | testing_date: Date assessment was completed",
+                "URL": "https://raw.githubusercontent.com/daniel-lim-ocid/datasets/main/galton_parent_child_heights.csv"
+            },
+            {
+                "Name": "High School Science Lab Experiments",
+                "Grade": "Grade 9, Grade 10, Grade 11, Grade 12",
+                "Subject": "Biology, Chemistry, Physics",
+                "Standard": "NGSS.HS-LS1-1, NGSS.HS-PS1-2",
+                "Size": "Large",
+                "Type": "Model",
+                "Description": "A dataset detailing student laboratory experiment completion times, safety compliance ratings, and lab report scores.",
+                "Questions": "How does lab duration correlate with lab report scores? | Which safety protocols are most frequently flagged during experiments?",
+                "Dictionary": "lab_id: Unique lab session ID | topic: Scientific area | student_count: Number of participating students | average_score*: Class average score on lab report | compliance_pass: Binary flag for safety audit",
+                "URL": "https://raw.githubusercontent.com/daniel-lim-ocid/datasets/main/nba_players.csv"
+            },
+            {
+                "Name": "Early Reading & Phonics Tracking",
+                "Grade": "Kindergarten, Grade 1, Grade 2",
+                "Subject": "English Language Arts, Reading",
+                "Standard": "CCSS.ELA-LITERACY.RF.K.1, CCSS.ELA-LITERACY.RF.1.2",
+                "Size": "Small",
+                "Type": "Distribution",
+                "Description": "Fluency and phonemic awareness tracking data recorded weekly for early childhood education students.",
+                "Questions": "What percentage of Grade 1 students reach target words-per-minute by week 12? | Is phonics intervention effective across all early grades?",
+                "Dictionary": "student_id: Anonymized student code | week_num: Instructional week number | wpm*: Words read correctly per minute | phonics_accuracy*: Accuracy percentage on phonics diagnostic",
+                "URL": "https://raw.githubusercontent.com/daniel-lim-ocid/datasets/main/galton_parent_child_heights.csv"
+            }
+        ];
+
+        window.addEventListener('DOMContentLoaded', () => {
+            fetchSpreadsheetData();
+            
+            // Close modal when pressing ESC key
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') closeModal();
+            });
+
+            // Close modal when clicking on backdrop
+            document.getElementById('dataset-modal').addEventListener('click', (e) => {
+                if (e.target.id === 'dataset-modal') closeModal();
+            });
+        });
+
+        // Fetch Google Sheet data using PapaParse
+        function fetchSpreadsheetData() {
+            const syncDot = document.getElementById('sync-dot');
+            const syncText = document.getElementById('sync-text');
+            const refreshIcon = document.getElementById('refresh-icon');
+            const loadingSpinner = document.getElementById('loading-spinner');
+            
+            refreshIcon.classList.add('fa-spin');
+            syncDot.className = 'w-2 h-2 rounded-full bg-amber-500 animate-pulse';
+            syncText.textContent = 'Fetching sheet...';
+            loadingSpinner.classList.remove('hidden');
+
+            Papa.parse(CSV_URL, {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    refreshIcon.classList.remove('fa-spin');
+                    if (results.data && results.data.length > 0 && results.data[0].Name) {
+                        allDatasets = sanitizeData(results.data);
+                        syncDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+                        syncText.textContent = `Live Google Sheet (${allDatasets.length} entries)`;
+                    } else {
+                        console.warn('Google Sheet empty or inaccessible. Using fallback dataset.');
+                        useFallbackData('Spreadsheet formatted or empty');
+                    }
+                    processDataAndRender();
+                },
+                error: function(err) {
+                    console.error('Error fetching Google Sheet:', err);
+                    refreshIcon.classList.remove('fa-spin');
+                    useFallbackData('Sheet load blocked / CORS');
+                    processDataAndRender();
+                }
+            });
+        }
+
+        function extractDictionaryMeta(dictStr) {
+            const queryableFields = [];
+            const filterFields = []; // Array of { field, defaultValue }
+
+            if (dictStr) {
+                dictStr.split('|').forEach(item => {
+                    const parts = item.split(':');
+                    const rawKey = parts[0] ? parts[0].trim() : '';
+
+                    if (rawKey.includes('**')) {
+                        // Filter Field: e.g. entity**{United States}
+                        const match = rawKey.match(/^([^*]+)\*\*\{([^}]+)\}/);
+                        if (match) {
+                            const field = match[1].trim();
+                            const defaultValue = match[2].trim();
+                            if (field && defaultValue) {
+                                filterFields.push({ field, defaultValue });
+                            }
+                        } else {
+                            const field = rawKey.replace(/\*\*/g, '').replace(/\{[^}]*\}/g, '').trim();
+                            if (field) {
+                                filterFields.push({ field, defaultValue: '' });
+                            }
+                        }
+                    } else if (rawKey.endsWith('*')) {
+                        // Queryable Field: e.g. math_score*
+                        const cleanTerm = rawKey.slice(0, -1).trim();
+                        if (cleanTerm) {
+                            queryableFields.push(cleanTerm);
+                        }
+                    }
+                });
+            }
+
+            return { queryableFields, filterFields };
+        }
+
+        function useFallbackData(reason) {
+            allDatasets = SAMPLE_FALLBACK_DATA.map(d => {
+                const meta = extractDictionaryMeta(d.Dictionary);
+                return {
+                    ...d,
+                    QueryableFields: meta.queryableFields,
+                    FilterFields: meta.filterFields
+                };
+            }).sort((a, b) => (a.Name || '').localeCompare(b.Name || '', undefined, { sensitivity: 'base' }));
+
+            const syncDot = document.getElementById('sync-dot');
+            const syncText = document.getElementById('sync-text');
+            syncDot.className = 'w-2 h-2 rounded-full bg-blue-500';
+            syncText.textContent = `Demo Mode (${allDatasets.length} datasets)`;
+        }
+
+        // Standardize properties to ensure exact property names
+        function sanitizeData(rawRows) {
+            const datasets = rawRows.map(row => {
+                // Find keys matching case-insensitively
+                const findKey = (name) => Object.keys(row).find(k => k.trim().toLowerCase() === name.toLowerCase()) || name;
+                
+                const dictStr = row[findKey('Dictionary')] || '';
+                const meta = extractDictionaryMeta(dictStr);
+
+                return {
+                    Name: row[findKey('Name')] || 'Untitled Dataset',
+                    Grade: row[findKey('Grade')] || 'Unspecified',
+                    Subject: row[findKey('Subject')] || 'General',
+                    Standard: row[findKey('Standard')] || 'None Specified',
+                    Size: (row[findKey('Size')] || 'Small').trim(),
+                    Type: (row[findKey('Type')] || '').trim(),
+                    Description: row[findKey('Description')] || 'No description provided.',
+                    Questions: row[findKey('Questions')] || '',
+                    Dictionary: dictStr,
+                    QueryableFields: meta.queryableFields,
+                    FilterFields: meta.filterFields,
+                    URL: row[findKey('URL')] || '#',
+                    Visualization: row[findKey('Visualization')] || ''
+                };
+            }).filter(d => d.Name && d.Name.trim() !== '');
+
+            return datasets.sort((a, b) => (a.Name || '').localeCompare(b.Name || '', undefined, { sensitivity: 'base' }));
+        }
+
+        function processDataAndRender() {
+            document.getElementById('loading-spinner').classList.add('hidden');
+            populateFilterDropdowns();
+            handleSearchFilter();
+        }
+
+        function populateFilterDropdowns() {
+            const gradeSelect = document.getElementById('grade-filter');
+            const subjectSelect = document.getElementById('subject-filter');
+
+            // Preserve current selections if any
+            const currentGrade = gradeSelect.value;
+            const currentSubject = subjectSelect.value;
+
+            // Extract unique Grades (comma split)
+            const gradesSet = new Set();
+            allDatasets.forEach(d => {
+                if (d.Grade) {
+                    d.Grade.split(',').forEach(g => {
+                        const trimmed = g.trim();
+                        if (trimmed) gradesSet.add(trimmed);
+                    });
+                }
+            });
+
+            // Extract unique Subjects (comma split)
+            const subjectsSet = new Set();
+            allDatasets.forEach(d => {
+                if (d.Subject) {
+                    d.Subject.split(',').forEach(s => {
+                        const trimmed = s.trim();
+                        if (trimmed) subjectsSet.add(trimmed);
+                    });
+                }
+            });
+
+            // Populate Grade Dropdown
+            gradeSelect.innerHTML = '<option value="">All Grades</option>';
+            Array.from(gradesSet).sort().forEach(g => {
+                const opt = document.createElement('option');
+                opt.value = g;
+                opt.textContent = g;
+                gradeSelect.appendChild(opt);
+            });
+
+            // Populate Subject Dropdown
+            subjectSelect.innerHTML = '<option value="">All Subjects</option>';
+            Array.from(subjectsSet).sort().forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s;
+                opt.textContent = s;
+                subjectSelect.appendChild(opt);
+            });
+
+            gradeSelect.value = currentGrade;
+            subjectSelect.value = currentSubject;
+        }
+
+        function handleSearchFilter() {
+            const query = document.getElementById('search-input').value.toLowerCase().trim();
+            const gradeFilter = document.getElementById('grade-filter').value;
+            const subjectFilter = document.getElementById('subject-filter').value;
+            const sizeFilter = document.getElementById('size-filter').value;
+            const typeFilter = document.getElementById('type-filter').value;
+
+            // Toggle clear search button visibility
+            const clearBtn = document.getElementById('clear-search');
+            if (query.length > 0) {
+                clearBtn.classList.remove('hidden');
+            } else {
+                clearBtn.classList.add('hidden');
+            }
+
+            // Filter implementation
+            filteredDatasets = allDatasets.filter(item => {
+                // Search over Name, Grade, Subject, Type, Description
+                const matchesSearch = !query || (
+                    (item.Name && item.Name.toLowerCase().includes(query)) ||
+                    (item.Grade && item.Grade.toLowerCase().includes(query)) ||
+                    (item.Subject && item.Subject.toLowerCase().includes(query)) ||
+                    (item.Type && item.Type.toLowerCase().includes(query)) ||
+                    (item.Description && item.Description.toLowerCase().includes(query))
+                );
+
+                // Specific dropdown filters
+                const matchesGrade = !gradeFilter || (item.Grade && item.Grade.toLowerCase().includes(gradeFilter.toLowerCase()));
+                const matchesSubject = !subjectFilter || (item.Subject && item.Subject.toLowerCase().includes(subjectFilter.toLowerCase()));
+                const matchesSize = !sizeFilter || (item.Size && item.Size.toLowerCase() === sizeFilter.toLowerCase());
+                const matchesType = !typeFilter || (item.Type && item.Type.toLowerCase() === typeFilter.toLowerCase());
+
+                return matchesSearch && matchesGrade && matchesSubject && matchesSize && matchesType;
+            });
+
+            // Update UI elements
+            document.getElementById('results-count').textContent = filteredDatasets.length;
+            
+            const isFiltered = query !== '' || gradeFilter !== '' || subjectFilter !== '' || sizeFilter !== '' || typeFilter !== '';
+            document.getElementById('filter-active-label').classList.toggle('hidden', !isFiltered);
+            document.getElementById('reset-filters-btn').classList.toggle('hidden', !isFiltered);
+
+            renderDatasets();
+        }
+
+        function clearSearch() {
+            document.getElementById('search-input').value = '';
+            handleSearchFilter();
+        }
+
+        function resetAllFilters() {
+            document.getElementById('search-input').value = '';
+            document.getElementById('grade-filter').value = '';
+            document.getElementById('subject-filter').value = '';
+            document.getElementById('size-filter').value = '';
+            document.getElementById('type-filter').value = '';
+            handleSearchFilter();
+        }
+
+        function setViewMode(mode) {
+            viewMode = mode;
+            const btnGrid = document.getElementById('btn-grid-view');
+            const btnList = document.getElementById('btn-list-view');
+
+            if (mode === 'grid') {
+                btnGrid.className = 'px-3 py-2 text-xs font-semibold rounded-lg bg-white shadow-sm text-blue-600 transition flex items-center gap-1.5';
+                btnList.className = 'px-3 py-2 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5';
+            } else {
+                btnList.className = 'px-3 py-2 text-xs font-semibold rounded-lg bg-white shadow-sm text-blue-600 transition flex items-center gap-1.5';
+                btnGrid.className = 'px-3 py-2 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5';
+            }
+
+            renderDatasets();
+        }
+
+        function renderDatasets() {
+            const container = document.getElementById('dataset-container');
+            const emptyState = document.getElementById('empty-state');
+
+            container.innerHTML = '';
+
+            if (filteredDatasets.length === 0) {
+                container.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            container.classList.remove('hidden');
+
+            if (viewMode === 'grid') {
+                container.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5';
+            } else {
+                container.className = 'flex flex-col space-y-3';
+            }
+
+            filteredDatasets.forEach((dataset, index) => {
+                const originalIndex = allDatasets.indexOf(dataset);
+                if (viewMode === 'grid') {
+                    container.appendChild(createGridCard(dataset, originalIndex));
+                } else {
+                    container.appendChild(createListItem(dataset, originalIndex));
+                }
+            });
+        }
+
+        // Helper: Generate Size Badge HTML
+        function getSizeBadgeHTML(size) {
+            const cleanSize = (size || 'Small').trim();
+            let badgeClass = 'size-badge-small';
+            let tooltip = '&lt;50 rows';
+
+            if (cleanSize.toLowerCase() === 'medium') {
+                badgeClass = 'size-badge-medium';
+                tooltip = '50-500 rows';
+            } else if (cleanSize.toLowerCase() === 'large') {
+                badgeClass = 'size-badge-large';
+                tooltip = '&gt;500 rows';
+            }
+
+            return `<span class="px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide ${badgeClass} inline-flex items-center gap-1" title="Row Count: ${tooltip}">
+                <i class="fa-solid fa-database text-[10px]"></i> ${cleanSize} (${tooltip})
+            </span>`;
+        }
+
+        // Helper: Generate Type Badge HTML
+        function getTypeBadgeHTML(type) {
+            if (!type || type.trim() === '') return '';
+            const cleanType = type.trim();
+            const isModel = cleanType.toLowerCase() === 'model';
+            const isDist = cleanType.toLowerCase() === 'distribution';
+            
+            let badgeClass = 'bg-slate-100 text-slate-700 border-slate-200';
+            let iconClass = 'fa-solid fa-tag';
+
+            if (isModel) {
+                badgeClass = 'bg-purple-100 text-purple-800 border-purple-200';
+                iconClass = 'fa-solid fa-cube';
+            } else if (isDist) {
+                badgeClass = 'bg-teal-100 text-teal-800 border-teal-200';
+                iconClass = 'fa-solid fa-chart-simple';
+            }
+
+            return `<span class="px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide ${badgeClass} border inline-flex items-center gap-1" title="Dataset Type: ${cleanType}">
+                <i class="${iconClass} text-[10px]"></i> ${cleanType}
+            </span>`;
+        }
+
+        // Helper: Parse Comma Delimited String into Badges
+        function createCommaBadges(str, colorClass = 'bg-slate-100 text-slate-700') {
+            if (!str) return '<span class="text-slate-400 italic">None</span>';
+            const items = str.split(',').map(s => s.trim()).filter(Boolean);
+            if (items.length === 0) return '<span class="text-slate-400 italic">None</span>';
+            return items.map(item => `<span class="px-2 py-0.5 rounded-md text-[11px] font-medium ${colorClass} border border-slate-200">${item}</span>`).join(' ');
+        }
+
+        function createGridCard(dataset, index) {
+            const card = document.createElement('div');
+            card.className = 'bg-white rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-lg transition-all duration-200 flex flex-col justify-between overflow-hidden group hover:border-blue-400 cursor-pointer';
+            card.onclick = (e) => {
+                if (e.target.closest('a')) return;
+                openModal(index);
+            };
+            
+            card.innerHTML = `
+                <div>
+                    <!-- Solid Lighter Gray Background Header for Dataset Title -->
+                    <div class="bg-slate-100/90 text-slate-900 p-4 sm:p-5 rounded-t-2xl space-y-2 border-b border-slate-200/80">
+                        <div class="flex items-start justify-between gap-2">
+                            <h3 class="font-bold text-slate-900 text-base leading-snug group-hover:text-blue-600 transition line-clamp-2">
+                                ${dataset.Name}
+                            </h3>
+                            ${dataset.URL && dataset.URL !== '#' ? `
+                                <a href="${dataset.URL}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="text-slate-400 hover:text-slate-700 text-xs p-1 shrink-0 transition" title="Open Resource Link">
+                                    <i class="fa-solid fa-up-right-from-square"></i>
+                                </a>
+                            ` : ''}
+                        </div>
+                        <div class="flex flex-wrap gap-1.5 pt-1">
+                            ${getSizeBadgeHTML(dataset.Size)}
+                            ${getTypeBadgeHTML(dataset.Type)}
+                        </div>
+                    </div>
+
+                    <!-- Card Body -->
+                    <div class="p-4 sm:p-5 space-y-4">
+                        <p class="text-xs text-slate-600 leading-relaxed line-clamp-3">
+                            ${dataset.Description || 'No description available.'}
+                        </p>
+
+                        <div class="space-y-2 pt-2 border-t border-slate-100 text-xs">
+                            <div>
+                                <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">Grades</span>
+                                <div class="flex flex-wrap gap-1">
+                                    ${createCommaBadges(dataset.Grade, 'bg-indigo-50 text-indigo-700')}
+                                </div>
+                            </div>
+
+                            <div>
+                                <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">Subjects</span>
+                                <div class="flex flex-wrap gap-1">
+                                    ${createCommaBadges(dataset.Subject, 'bg-emerald-50 text-emerald-700')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            return card;
+        }
+
+        function createListItem(dataset, index) {
+            const item = document.createElement('div');
+            item.className = 'bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition overflow-hidden group cursor-pointer hover:border-blue-400';
+            item.onclick = (e) => {
+                if (e.target.closest('a')) return;
+                openModal(index);
+            };
+
+            item.innerHTML = `
+                <!-- Light Gray Background Header for Title -->
+                <div class="bg-slate-100/90 text-slate-900 px-4 py-3 border-b border-slate-200/80 flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <h3 class="font-bold text-slate-900 text-sm group-hover:text-blue-600 transition">
+                            ${dataset.Name}
+                        </h3>
+                        ${getSizeBadgeHTML(dataset.Size)}
+                        ${getTypeBadgeHTML(dataset.Type)}
+                    </div>
+                    ${dataset.URL && dataset.URL !== '#' ? `
+                        <a href="${dataset.URL}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="text-slate-400 hover:text-slate-700 text-xs p-1 shrink-0 transition" title="Open Resource Link">
+                            <i class="fa-solid fa-up-right-from-square"></i>
+                        </a>
+                    ` : ''}
+                </div>
+
+                <!-- Content Body -->
+                <div class="p-4 space-y-2">
+                    <p class="text-xs text-slate-600 leading-relaxed line-clamp-2">${dataset.Description || 'No description available.'}</p>
+                    <div class="flex flex-wrap items-center gap-3 text-xs pt-2 border-t border-slate-100">
+                        <span class="text-slate-500"><strong>Grades:</strong> ${dataset.Grade}</span>
+                        <span class="text-slate-300">•</span>
+                        <span class="text-slate-500"><strong>Subject:</strong> ${dataset.Subject}</span>
+                    </div>
+                </div>
+            `;
+            return item;
+        }
+
+        function formatPipeUnorderedList(str, isNumbered = false) {
+            if (!str) return '<p class="text-slate-400 italic">None specified</p>';
+            const items = str.split('|').map(s => s.trim()).filter(Boolean);
+            if (items.length === 0) return '<p class="text-slate-400 italic">None specified</p>';
+
+            const tag = isNumbered ? 'ol' : 'ul';
+            const listClass = isNumbered ? 'list-decimal list-inside space-y-1' : 'space-y-1.5';
+            
+            const lis = items.map(item => `
+                <li class="flex items-start gap-2">
+                    <span class="text-blue-500 font-bold">•</span>
+                    <span>${item}</span>
+                </li>
+            `).join('');
+
+            return `<${tag} class="${listClass}">${lis}</${tag}>`;
+        }
+
+        function formatDictionaryTable(str) {
+            if (!str) return '<p class="text-slate-400 italic">No data dictionary available</p>';
+            const items = str.split('|').map(s => s.trim()).filter(Boolean);
+            if (items.length === 0) return '<p class="text-slate-400 italic">No data dictionary available</p>';
+
+            const rows = items.map(item => {
+                const parts = item.split(':');
+                let rawKey = parts[0] ? parts[0].trim() : '';
+                const desc = parts.slice(1).join(':').trim();
+
+                let displayTerm = rawKey;
+                let badgeHTML = '';
+
+                if (rawKey.includes('**')) {
+                    // Filter field e.g. entity**{United States}
+                    const match = rawKey.match(/^([^*]+)\*\*\{([^}]+)\}/);
+                    if (match) {
+                        displayTerm = match[1].trim();
+                        const filterVal = match[2].trim();
+                        badgeHTML = `
+                            <span class="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-sans font-semibold inline-flex items-center gap-1 shrink-0" title="Filter field (Default: ${filterVal})">
+                                <i class="fa-solid fa-filter text-[9px] text-blue-500"></i> Filter: ${filterVal}
+                            </span>
+                        `;
+                    } else {
+                        displayTerm = rawKey.replace(/\*\*/g, '').replace(/\{[^}]*\}/g, '').trim();
+                        badgeHTML = `
+                            <span class="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-sans font-semibold inline-flex items-center gap-1 shrink-0" title="Filter field">
+                                <i class="fa-solid fa-filter text-[9px] text-blue-500"></i> Filter Field
+                            </span>
+                        `;
+                    }
+                } else if (rawKey.endsWith('*')) {
+                    // Queryable field e.g. math_score*
+                    displayTerm = rawKey.slice(0, -1).trim();
+                    badgeHTML = `
+                        <span class="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-sans font-semibold inline-flex items-center gap-1 shrink-0" title="Queryable field for analysis">
+                            <i class="fa-solid fa-bolt text-[9px] text-amber-500"></i> Queryable
+                        </span>
+                    `;
+                }
+
+                return `
+                    <tr class="hover:bg-slate-50/80 transition">
+                        <td class="py-2.5 px-3 text-slate-800 font-mono font-bold text-[11px] bg-slate-50/50 flex items-center justify-between gap-2">
+                            <span>${displayTerm}</span>
+                            ${badgeHTML}
+                        </td>
+                        <td class="py-2.5 px-3 text-slate-600 text-xs">${desc || '-'}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            return `
+                <div class="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
+                    <table class="w-full text-left border-collapse bg-white">
+                        <thead>
+                            <tr class="bg-slate-100 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                                <th class="py-2.5 px-3 w-1/3">Field / Term</th>
+                                <th class="py-2.5 px-3 w-2/3">Description</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            ${rows}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function openModal(index) {
+            const dataset = allDatasets[index];
+            if (!dataset) return;
+
+            // Title
+            document.getElementById('modal-title').textContent = dataset.Name;
+
+            // Badges in Header
+            document.getElementById('modal-badges').innerHTML = `
+                ${getSizeBadgeHTML(dataset.Size)}
+                ${getTypeBadgeHTML(dataset.Type)}
+            `;
+
+            // Description
+            document.getElementById('modal-description').textContent = dataset.Description || 'No description provided for this dataset.';
+
+            // Grade (Badges matching search cards)
+            document.getElementById('modal-grade-container').innerHTML = `<div class="flex flex-wrap gap-1.5">${createCommaBadges(dataset.Grade, 'bg-indigo-50 text-indigo-700')}</div>`;
+
+            // Subject (Badges matching search cards)
+            document.getElementById('modal-subject-container').innerHTML = `<div class="flex flex-wrap gap-1.5">${createCommaBadges(dataset.Subject, 'bg-emerald-50 text-emerald-700')}</div>`;
+
+            // Dataset Type (Meta Grid Card)
+            const typeContainer = document.getElementById('modal-type-container');
+            if (typeContainer) {
+                typeContainer.innerHTML = getTypeBadgeHTML(dataset.Type) || '<span class="text-slate-400 italic">Unspecified</span>';
+            }
+
+            // Standard (Badges matching search cards)
+            document.getElementById('modal-standard-container').innerHTML = `<div class="flex flex-wrap gap-1.5">${createCommaBadges(dataset.Standard, 'bg-amber-50 text-amber-700')}</div>`;
+
+            // Questions (' | ' delimited -> Unordered List)
+            document.getElementById('modal-questions-container').innerHTML = formatPipeUnorderedList(dataset.Questions, false);
+
+            // Dictionary (' | ' delimited -> Data Table)
+            document.getElementById('modal-dictionary-container').innerHTML = formatDictionaryTable(dataset.Dictionary);
+
+            // Queryable Fields Dropdowns for Distribution and Model dataset types
+            const distContainer = document.getElementById('modal-dist-select-container');
+            const modelContainer = document.getElementById('modal-model-select-container');
+            
+            const distSelect = document.getElementById('modal-queryable-field-select');
+            const modelXSelect = document.getElementById('modal-model-x-select');
+            const modelYSelect = document.getElementById('modal-model-y-select');
+
+            const datasetType = (dataset.Type || '').trim().toLowerCase();
+            const queryableFields = dataset.QueryableFields || [];
+
+            // Get available options list (queryable fields or dictionary terms)
+            let fieldOptions = queryableFields;
+            if (fieldOptions.length === 0 && dataset.Dictionary) {
+                fieldOptions = dataset.Dictionary.split('|').map(s => s.split(':')[0].trim().replace(/\*$/, '')).filter(Boolean);
+            }
+
+            if (datasetType === 'model') {
+                distContainer.classList.add('hidden');
+                distContainer.classList.remove('flex');
+
+                if (fieldOptions.length > 0) {
+                    modelXSelect.innerHTML = fieldOptions.map(f => `<option value="${f}">${f}</option>`).join('');
+                    modelYSelect.innerHTML = fieldOptions.map(f => `<option value="${f}">${f}</option>`).join('');
+                    
+                    // Default Y to 2nd item if available, otherwise 1st
+                    if (fieldOptions.length > 1) {
+                        modelYSelect.selectedIndex = 1;
+                    }
+
+                    modelContainer.classList.remove('hidden');
+                    modelContainer.classList.add('flex');
+                } else {
+                    modelContainer.classList.add('hidden');
+                    modelContainer.classList.remove('flex');
+                }
+            } else {
+                // Default / Distribution type
+                modelContainer.classList.add('hidden');
+                modelContainer.classList.remove('flex');
+
+                if (fieldOptions.length > 0) {
+                    distSelect.innerHTML = fieldOptions.map(f => `<option value="${f}">${f}</option>`).join('');
+                    distContainer.classList.remove('hidden');
+                    distContainer.classList.add('flex');
+                } else {
+                    distContainer.classList.add('hidden');
+                    distContainer.classList.remove('flex');
+                }
+            }
+
+            // Visualize Button Click Event
+            const vizBtn = document.getElementById('modal-visualize-btn');
+            if (vizBtn) {
+                vizBtn.onclick = function() {
+                    const dsType = (dataset.Type || '').trim().toLowerCase();
+                    if (dsType === 'model') {
+                        const xVal = modelXSelect ? modelXSelect.value : '';
+                        const yVal = modelYSelect ? modelYSelect.value : '';
+                        openDesmosModelVisualization(index, xVal, yVal);
+                    } else {
+                        const selectedField = distSelect ? distSelect.value : '';
+                        openDesmosVisualization(index, selectedField);
+                    }
+                };
+            }
+
+            // Action URL
+            const urlBtn = document.getElementById('modal-action-url');
+            if (dataset.URL && dataset.URL !== '#') {
+                urlBtn.href = dataset.URL;
+                urlBtn.classList.remove('pointer-events-none', 'opacity-50');
+            } else {
+                urlBtn.href = '#';
+                urlBtn.classList.add('pointer-events-none', 'opacity-50');
+            }
+
+            // CODAP Visualization URL
+            const vizSection = document.getElementById('modal-viz-section');
+            const vizBannerBtn = document.getElementById('modal-viz-banner-btn');
+
+            if (dataset.Visualization && dataset.Visualization.trim() !== '' && dataset.Visualization !== '#') {
+                vizBannerBtn.href = dataset.Visualization;
+                vizSection.classList.remove('hidden');
+            } else {
+                vizSection.classList.add('hidden');
+            }
+
+            // Display modal
+            const modal = document.getElementById('dataset-modal');
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden'; // Lock background scrolling
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('dataset-modal');
+            modal.classList.add('hidden');
+            document.body.style.overflow = ''; // Restore background scrolling
+        }
+
+        function getRawCsvUrl(urlStr, datasetName = '') {
+            let targetUrl = (urlStr || '').trim();
+
+            // 1. Convert GitHub web URLs (e.g. github.com/owner/repo/blob/main/file.csv) to raw format
+            if (targetUrl.includes('github.com')) {
+                targetUrl = targetUrl
+                    .replace('github.com/', 'raw.githubusercontent.com/')
+                    .replace('/blob/', '/')
+                    .replace('/raw/', '/');
+            }
+
+            // 2. If it is a valid direct CSV endpoint, return it immediately
+            const isValidCsv = targetUrl.startsWith('http') && !targetUrl.includes('spreadsheets/d/') && targetUrl !== '#';
+            if (isValidCsv) {
+                return targetUrl;
+            }
+
+            // 3. Fallback CSV endpoints if URL is missing or points to Google Sheet
+            const normName = (datasetName || '').toLowerCase();
+            if (normName.includes('nba') || normName.includes('basketball')) {
+                return 'https://raw.githubusercontent.com/daniel-lim-ocid/datasets/main/nba_players.csv';
+            }
+            return 'https://raw.githubusercontent.com/daniel-lim-ocid/datasets/main/galton_parent_child_heights.csv';
+        }
+
+        function openDesmosModelVisualization(index = currentModalDatasetIndex, xField = '', yField = '') {
+            const dataset = allDatasets[index] || (allDatasets.length > 0 ? allDatasets[0] : null);
+            if (!dataset) return;
+
+            const targetUrl = getRawCsvUrl(dataset.URL, dataset.Name);
+
+            const graphWindow = window.open('', '_blank');
+            if (!graphWindow) {
+                alert('Please allow popups for this website');
+                return;
+            }
+
+            const safeXField = (xField || '').replace(/'/g, "\\'");
+            const safeYField = (yField || '').replace(/'/g, "\\'");
+            const safeDatasetName = (dataset.Name || 'Dataset').replace(/'/g, "\\'");
+            const filterRulesJSON = JSON.stringify(dataset.FilterFields || []);
+
+            graphWindow.document.write(`
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>${safeDatasetName} - Desmos Scatterplot & Model</title>
+                    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"><\/script>
+                    <script src="https://www.desmos.com/api/v1.9/calculator.js?apiKey=dcb31709b452b1cf9dc26972add0fda6"><\/script>
+                    <style>
+                        html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #0f172a; font-family: system-ui, -apple-system, sans-serif; }
+                        #calculator { width: 100%; height: 100%; }
+                        #status-bar { position: absolute; top: 12px; left: 55px; z-index: 10; background: rgba(15, 23, 42, 0.85); color: #f8fafc; padding: 6px 14px; border-radius: 8px; font-size: 12px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(4px); pointer-events: none; }
+                    </style>
+                </head>
+                <body>
+                    <div id="status-bar">
+                        <strong>${safeDatasetName}</strong> &bull; <span id="col-info">Loading CSV data for Scatterplot...</span>
+                    </div>
+                    <div id="calculator"></div>
+                    <script>
+                        const elt = document.getElementById('calculator');
+                        const calculator = Desmos.GraphingCalculator(elt, {
+                            expressions: true,
+                            keypad: true,
+                            settingsMenu: true
+                        });
+
+                        const filterRules = ${filterRulesJSON};
+
+                        Papa.parse('${targetUrl}', {
+                            download: true,
+                            header: true,
+                            skipEmptyLines: true,
+                            complete: function(results) {
+                                renderScatterplot(results.data, '${safeXField}', '${safeYField}', filterRules);
+                            },
+                            error: function(err) {
+                                console.error('Error fetching CSV:', err);
+                            }
+                        });
+
+                        function applyFilters(rows, filters) {
+                            if (!filters || filters.length === 0 || !rows || rows.length === 0) return rows;
+                            let filtered = rows;
+                            const keys = Object.keys(rows[0]);
+                            filters.forEach(rule => {
+                                if (!rule.field || !rule.defaultValue) return;
+                                const normField = rule.field.trim().toLowerCase();
+                                const matchedCol = keys.find(k => k.trim().toLowerCase() === normField) ||
+                                                   keys.find(k => k.trim().toLowerCase().includes(normField));
+                                if (matchedCol) {
+                                    const targetVal = rule.defaultValue.trim().toLowerCase();
+                                    const res = filtered.filter(r => String(r[matchedCol] || '').trim().toLowerCase() === targetVal);
+                                    if (res.length > 0) filtered = res;
+                                }
+                            });
+                            return filtered;
+                        }
+
+                        function renderScatterplot(rawRows, xName, yName, filters) {
+                            const rows = applyFilters(rawRows, filters);
+                            if (!rows || rows.length === 0) return;
+                            const sampleRow = rows[0];
+                            const keys = Object.keys(sampleRow);
+
+                            let matchedX = null;
+                            let matchedY = null;
+
+                            if (xName && xName.trim() !== '') {
+                                const normX = xName.trim().toLowerCase();
+                                matchedX = keys.find(k => k.trim().toLowerCase() === normX) ||
+                                           keys.find(k => k.trim().toLowerCase().includes(normX));
+                            }
+                            if (yName && yName.trim() !== '') {
+                                const normY = yName.trim().toLowerCase();
+                                matchedY = keys.find(k => k.trim().toLowerCase() === normY) ||
+                                           keys.find(k => k.trim().toLowerCase().includes(normY));
+                            }
+
+                            const numericCols = keys.filter(k => {
+                                const val = parseFloat(sampleRow[k]);
+                                return !isNaN(val);
+                            });
+
+                            if (!matchedX) matchedX = numericCols[0] || keys[0];
+                            if (!matchedY) matchedY = numericCols[1] || numericCols[0] || keys[1] || keys[0];
+
+                            const xVals = [];
+                            const yVals = [];
+
+                            for (let i = 0; i < rows.length && xVals.length < 100; i++) {
+                                const rawX = rows[i][matchedX];
+                                const rawY = rows[i][matchedY];
+                                if (rawX !== undefined && rawY !== undefined && rawX !== null && rawY !== null) {
+                                    const nx = parseFloat(String(rawX).trim());
+                                    const ny = parseFloat(String(rawY).trim());
+                                    if (!isNaN(nx) && !isNaN(ny)) {
+                                        xVals.push(nx);
+                                        yVals.push(ny);
+                                    }
+                                }
+                            }
+
+                            if (xVals.length === 0) return;
+
+                            const N = xVals.length;
+                            let filterSummary = '';
+                            if (filters && filters.length > 0) {
+                                filterSummary = ' (Filter: ' + filters.map(f => f.field + '=' + f.defaultValue).join(', ') + ')';
+                            }
+
+                            const colInfoEl = document.getElementById('col-info');
+                            if (colInfoEl) {
+                                colInfoEl.textContent = 'Scatterplot: X = ' + matchedX + ' | Y = ' + matchedY + ' | Points: ' + N + filterSummary;
+                            }
+
+                            // 1. Define x1 and y1 lists in Desmos
+                            calculator.setExpression({ id: 'x_list', latex: 'x_1=\\\\left[' + xVals.join(',') + '\\\\right]', color: Desmos.Colors.BLUE });
+                            calculator.setExpression({ id: 'y_list', latex: 'y_1=\\\\left[' + yVals.join(',') + '\\\\right]', color: Desmos.Colors.BLUE });
+
+                            // 2. Plot scatterplot points (x1, y1)
+                            calculator.setExpression({ id: 'pts', latex: '(x_1,y_1)', color: Desmos.Colors.BLUE, label: matchedX + ' vs ' + matchedY });
+
+                            // 3. Add Linear Regression model: y1 ~ m1 * x1 + b1
+                            calculator.setExpression({ id: 'regr', latex: 'y_1 \\\\sim m_1 x_1 + b_1', color: Desmos.Colors.RED, lineWidth: 3 });
+
+                            // Calculate viewport bounds
+                            const minX = Math.min(...xVals);
+                            const maxX = Math.max(...xVals);
+                            const minY = Math.min(...yVals);
+                            const maxY = Math.max(...yVals);
+
+                            const rangeX = maxX - minX || 10;
+                            const rangeY = maxY - minY || 10;
+
+                            calculator.setMathBounds({
+                                left: minX - rangeX * 0.15,
+                                right: maxX + rangeX * 0.15,
+                                bottom: minY - rangeY * 0.15,
+                                top: maxY + rangeY * 0.15
+                            });
+                        }
+                    <\/script>
+                </body>
+                </html>
+            `);
+
+            graphWindow.document.close();
+        }
+
+        function openDesmosVisualization(index = currentModalDatasetIndex, targetField = '') {
+            const dataset = allDatasets[index] || (allDatasets.length > 0 ? allDatasets[0] : null);
+            if (!dataset) return;
+
+            // If targetField is not explicitly passed, check dropdown element
+            if (!targetField) {
+                const selectEl = document.getElementById('modal-queryable-field-select');
+                if (selectEl && selectEl.value) {
+                    targetField = selectEl.value;
+                }
+            }
+
+            const targetUrl = getRawCsvUrl(dataset.URL, dataset.Name);
+
+            // 1. Open a new window / tab
+            const graphWindow = window.open('', '_blank');
+            if (!graphWindow) {
+                alert('Please allow popups for this website');
+                return;
+            }
+
+            const safeTargetField = (targetField || '').replace(/'/g, "\\'");
+            const safeDatasetName = (dataset.Name || 'Dataset').replace(/'/g, "\\'");
+            const filterRulesJSON = JSON.stringify(dataset.FilterFields || []);
+
+            // 2. Write HTML document structure with the Desmos API script
+            graphWindow.document.write(`
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>${safeDatasetName} - Desmos Graph</title>
+                    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"><\/script>
+                    <script src="https://www.desmos.com/api/v1.9/calculator.js?apiKey=dcb31709b452b1cf9dc26972add0fda6"><\/script>
+                    <style>
+                        html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #0f172a; font-family: system-ui, -apple-system, sans-serif; }
+                        #calculator { width: 100%; height: 100%; }
+                        #status-bar { position: absolute; top: 12px; left: 55px; z-index: 10; background: rgba(15, 23, 42, 0.85); color: #f8fafc; padding: 6px 14px; border-radius: 8px; font-size: 12px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(4px); pointer-events: none; }
+                    </style>
+                </head>
+                <body>
+                    <div id="status-bar">
+                        <strong>${safeDatasetName}</strong> &bull; <span id="col-info">Loading CSV data...</span>
+                    </div>
+                    <div id="calculator"></div>
+                    <script>
+                        // 3. Initialize the calculator
+                        const elt = document.getElementById('calculator');
+                        const calculator = Desmos.GraphingCalculator(elt, {
+                            expressions: true,
+                            keypad: true,
+                            settingsMenu: true
+                        });
+
+                        const filterRules = ${filterRulesJSON};
+
+                        // Fetch dataset CSV from GitHub URL and render histogram
+                        Papa.parse('${targetUrl}', {
+                            download: true,
+                            header: true,
+                            skipEmptyLines: true,
+                            complete: function(results) {
+                                renderHistogram(results.data, '${safeTargetField}', filterRules);
+                            },
+                            error: function() {
+                                Papa.parse('https://raw.githubusercontent.com/daniel-lim-ocid/datasets/main/galton_parent_child_heights.csv', {
+                                    download: true,
+                                    header: true,
+                                    skipEmptyLines: true,
+                                    complete: function(results) {
+                                        renderHistogram(results.data, '${safeTargetField}', filterRules);
+                                    }
+                                });
+                            }
+                        });
+
+                        function applyFilters(rows, filters) {
+                            if (!filters || filters.length === 0 || !rows || rows.length === 0) return rows;
+                            let filtered = rows;
+                            const keys = Object.keys(rows[0]);
+                            filters.forEach(rule => {
+                                if (!rule.field || !rule.defaultValue) return;
+                                const normField = rule.field.trim().toLowerCase();
+                                const matchedCol = keys.find(k => k.trim().toLowerCase() === normField) ||
+                                                   keys.find(k => k.trim().toLowerCase().includes(normField));
+                                if (matchedCol) {
+                                    const targetVal = rule.defaultValue.trim().toLowerCase();
+                                    const res = filtered.filter(r => String(r[matchedCol] || '').trim().toLowerCase() === targetVal);
+                                    if (res.length > 0) filtered = res;
+                                }
+                            });
+                            return filtered;
+                        }
+
+                        function renderHistogram(rawRows, targetField, filters) {
+                            const rows = applyFilters(rawRows, filters);
+                            if (!rows || rows.length === 0) return;
+                            const sampleRow = rows[0];
+                            const keys = Object.keys(sampleRow);
+                            
+                            let matchedCol = null;
+                            if (targetField && targetField.trim() !== '') {
+                                const normTarget = targetField.trim().toLowerCase();
+                                matchedCol = keys.find(k => k.trim().toLowerCase() === normTarget) ||
+                                             keys.find(k => k.trim().toLowerCase().includes(normTarget));
+                            }
+                            if (!matchedCol) {
+                                matchedCol = keys.find(k => k.trim().toLowerCase() === 'height') ||
+                                             keys.find(k => k.trim().toLowerCase().includes('height')) ||
+                                             keys.find(k => k.trim().toLowerCase() === 'childheight');
+                            }
+                            if (!matchedCol) {
+                                matchedCol = keys.find(k => {
+                                    const val = parseFloat(sampleRow[k]);
+                                    return !isNaN(val) && val > 0;
+                                }) || keys[0];
+                            }
+
+                            // Extract up to 100 numeric records
+                            const values = [];
+                            for (let i = 0; i < rows.length && values.length < 100; i++) {
+                                const rawVal = rows[i][matchedCol];
+                                if (rawVal !== undefined && rawVal !== null) {
+                                    const num = parseFloat(String(rawVal).trim());
+                                    if (!isNaN(num)) values.push(num);
+                                }
+                            }
+
+                            if (values.length === 0) return;
+
+                            const N = values.length;
+                            const mean = values.reduce((a, b) => a + b, 0) / N;
+                            const variance = values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / (N > 1 ? N - 1 : 1);
+                            const stdev = Math.sqrt(variance);
+                            const min = Math.min(...values);
+                            const max = Math.max(...values);
+                            const range = max - min || 1;
+
+                            let binWidth = Math.max(0.5, Math.round((range / 12) * 2) / 2);
+                            if (range <= 10) binWidth = 0.5;
+
+                            let filterSummary = '';
+                            if (filters && filters.length > 0) {
+                                filterSummary = ' (Filter: ' + filters.map(f => f.field + '=' + f.defaultValue).join(', ') + ')';
+                            }
+
+                            const colInfoEl = document.getElementById('col-info');
+                            if (colInfoEl) {
+                                colInfoEl.textContent = 'Column: ' + matchedCol + ' | Rows: ' + N + ' | Mean: ' + mean.toFixed(2) + ' | StdDev: ' + stdev.toFixed(2) + filterSummary;
+                            }
+
+                            // 4. Add pre-populated formulas and parameters
+                            calculator.setExpression({ id: 'data_l', latex: 'L=\\\\left[' + values.join(',') + '\\\\right]', color: Desmos.Colors.BLUE });
+                            calculator.setExpression({ id: 'bin_w', latex: 'w=' + binWidth });
+                            calculator.setExpression({ id: 'hist', latex: '\\\\operatorname{histogram}\\\\left(L,w\\\\right)', color: Desmos.Colors.BLUE });
+                            calculator.setExpression({ id: 'mean_m', latex: 'm=\\\\operatorname{mean}\\\\left(L\\\\right)', color: Desmos.Colors.BLACK });
+                            calculator.setExpression({ id: 'stdev_s', latex: 's=\\\\operatorname{stdev}\\\\left(L\\\\right)', color: Desmos.Colors.GRAY });
+                            calculator.setExpression({ id: 'line_m', latex: 'x=m', color: Desmos.Colors.BLACK, lineStyle: Desmos.Styles.DASHED, label: 'Mean (' + mean.toFixed(1) + ')', showLabel: true });
+                            calculator.setExpression({ id: 'sd_p1', latex: 'x=m+s', color: Desmos.Colors.BLUE, lineStyle: Desmos.Styles.DASHED, label: '+1 SD', showLabel: true });
+                            calculator.setExpression({ id: 'sd_m1', latex: 'x=m-s', color: Desmos.Colors.BLUE, lineStyle: Desmos.Styles.DASHED, label: '-1 SD', showLabel: true });
+                            calculator.setExpression({ id: 'sd_p2', latex: 'x=m+2s', color: Desmos.Colors.PURPLE, lineStyle: Desmos.Styles.DASHED, label: '+2 SD', showLabel: true });
+                            calculator.setExpression({ id: 'sd_m2', latex: 'x=m-2s', color: Desmos.Colors.PURPLE, lineStyle: Desmos.Styles.DASHED, label: '-2 SD', showLabel: true });
+                            calculator.setExpression({ id: 'sd_p3', latex: 'x=m+3s', color: Desmos.Colors.RED, lineStyle: Desmos.Styles.DASHED, label: '+3 SD', showLabel: true });
+                            calculator.setExpression({ id: 'sd_m3', latex: 'x=m-3s', color: Desmos.Colors.RED, lineStyle: Desmos.Styles.DASHED, label: '-3 SD', showLabel: true });
+                            calculator.setExpression({ id: 'norm_pdf', latex: 'f\\\\left(x\\\\right)=\\\\frac{' + N + ' \\\\cdot w}{s\\\\cdot\\\\sqrt{2\\\\pi}}\\\\exp\\\\left(-0.5\\\\cdot\\\\left(\\\\frac{x-m}{s}\\\\right)^{2}\\\\right)', color: Desmos.Colors.RED, lineWidth: 3, label: 'Normal Curve', showLabel: true });
+
+                            const peakY = (N * binWidth) / (stdev * Math.sqrt(2 * Math.PI));
+                            calculator.setMathBounds({
+                                left: Math.max(0, min - 3 * stdev),
+                                right: max + 3 * stdev,
+                                bottom: -0.5,
+                                top: Math.max(peakY * 1.35, 10)
+                            });
+                        }
+                    <\/script>
+                </body>
+                </html>
+            `);
+            
+            // 5. Close the document stream
+            graphWindow.document.close();
+        }
+    </script>
+</body>
+</html>
