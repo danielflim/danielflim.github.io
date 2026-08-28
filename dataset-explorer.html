@@ -298,6 +298,12 @@
                             <i class="fa-solid fa-chart-column"></i>
                             <span>Visualize</span>
                         </button>
+
+                        <!-- Lesson Button (Shown if dataset has Lesson URL) -->
+                        <a id="modal-lesson-btn" href="#" target="_blank" rel="noopener noreferrer" class="hidden px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-book-open"></i>
+                            <span>Lesson</span>
+                        </a>
                     </div>
                 </div>
 
@@ -411,7 +417,8 @@
                 "Description": "Comprehensive standardized math assessment results from spring 2023 for elementary students across district schools.",
                 "Questions": "What is the average proficiency rate across grades? | Are there significant disparities in multiplication accuracy between Grade 3 and Grade 4? | Which domains require curriculum revision?",
                 "Dictionary": "entity**{United States}: Target geographic area | student_id: Unique anonymized student identification code | grade_level: Academic grade level (3-5) | math_score*: Raw score on 100-point scale | proficiency_level*: Categorical evaluation (Below, Basic, Proficient, Advanced) | testing_date: Date assessment was completed",
-                "URL": "https://raw.githubusercontent.com/daniel-lim-ocid/datasets/main/galton_parent_child_heights.csv"
+                "URL": "https://raw.githubusercontent.com/daniel-lim-ocid/datasets/main/galton_parent_child_heights.csv",
+                "Lesson": "https://www.desmos.com"
             },
             {
                 "Name": "High School Science Lab Experiments",
@@ -423,7 +430,8 @@
                 "Description": "A dataset detailing student laboratory experiment completion times, safety compliance ratings, and lab report scores.",
                 "Questions": "How does lab duration correlate with lab report scores? | Which safety protocols are most frequently flagged during experiments?",
                 "Dictionary": "lab_id: Unique lab session ID | topic: Scientific area | student_count: Number of participating students | average_score*: Class average score on lab report | compliance_pass: Binary flag for safety audit",
-                "URL": "https://raw.githubusercontent.com/daniel-lim-ocid/datasets/main/nba_players.csv"
+                "URL": "https://raw.githubusercontent.com/daniel-lim-ocid/datasets/main/nba_players.csv",
+                "Lesson": "https://www.desmos.com/calculator"
             },
             {
                 "Name": "Early Reading & Phonics Tracking",
@@ -435,7 +443,8 @@
                 "Description": "Fluency and phonemic awareness tracking data recorded weekly for early childhood education students.",
                 "Questions": "What percentage of Grade 1 students reach target words-per-minute by week 12? | Is phonics intervention effective across all early grades?",
                 "Dictionary": "student_id: Anonymized student code | week_num: Instructional week number | wpm*: Words read correctly per minute | phonics_accuracy*: Accuracy percentage on phonics diagnostic",
-                "URL": "https://raw.githubusercontent.com/daniel-lim-ocid/datasets/main/galton_parent_child_heights.csv"
+                "URL": "https://raw.githubusercontent.com/daniel-lim-ocid/datasets/main/galton_parent_child_heights.csv",
+                "Lesson": ""
             }
         ];
 
@@ -546,26 +555,43 @@
         // Standardize properties to ensure exact property names
         function sanitizeData(rawRows) {
             const datasets = rawRows.map(row => {
-                // Find keys matching case-insensitively
-                const findKey = (name) => Object.keys(row).find(k => k.trim().toLowerCase() === name.toLowerCase()) || name;
+                const keys = Object.keys(row);
                 
-                const dictStr = row[findKey('Dictionary')] || '';
+                // Flexible getter matching exact or substring key names
+                const getValue = (...candidates) => {
+                    for (const candidate of candidates) {
+                        const normCandidate = candidate.toLowerCase().trim();
+                        // 1. Exact case-insensitive match
+                        let matchedKey = keys.find(k => k.trim().toLowerCase() === normCandidate);
+                        // 2. Partial substring match (e.g. "Lesson URL", "Lesson Plan", "Visualization")
+                        if (!matchedKey) {
+                            matchedKey = keys.find(k => k.trim().toLowerCase().includes(normCandidate));
+                        }
+                        if (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== null) {
+                            const val = String(row[matchedKey]).trim();
+                            if (val !== '') return val;
+                        }
+                    }
+                    return '';
+                };
+
+                const dictStr = getValue('Dictionary');
                 const meta = extractDictionaryMeta(dictStr);
 
                 return {
-                    Name: row[findKey('Name')] || 'Untitled Dataset',
-                    Grade: row[findKey('Grade')] || 'Unspecified',
-                    Subject: row[findKey('Subject')] || 'General',
-                    Standard: row[findKey('Standard')] || 'None Specified',
-                    Size: (row[findKey('Size')] || 'Small').trim(),
-                    Type: (row[findKey('Type')] || '').trim(),
-                    Description: row[findKey('Description')] || 'No description provided.',
-                    Questions: row[findKey('Questions')] || '',
+                    Name: getValue('Name') || 'Untitled Dataset',
+                    Grade: getValue('Grade') || 'Unspecified',
+                    Subject: getValue('Subject') || 'General',
+                    Standard: getValue('Standard') || 'None Specified',
+                    Size: (getValue('Size') || 'Small').trim(),
+                    Type: getValue('Type'),
+                    Description: getValue('Description') || 'No description provided.',
+                    Questions: getValue('Questions'),
                     Dictionary: dictStr,
                     QueryableFields: meta.queryableFields,
                     FilterFields: meta.filterFields,
-                    URL: row[findKey('URL')] || '#',
-                    Visualization: row[findKey('Visualization')] || ''
+                    URL: getValue('URL') || '#',
+                    Lesson: getValue('Lesson', 'Visualization', 'CODAP', 'Lesson Plan', 'Lesson URL', 'Link')
                 };
             }).filter(d => d.Name && d.Name.trim() !== '');
 
@@ -727,7 +753,14 @@
             }
 
             filteredDatasets.forEach((dataset, index) => {
-                const originalIndex = allDatasets.indexOf(dataset);
+                let originalIndex = allDatasets.indexOf(dataset);
+                if (originalIndex === -1) {
+                    originalIndex = allDatasets.findIndex(d => d.Name === dataset.Name);
+                }
+                if (originalIndex === -1) {
+                    originalIndex = index;
+                }
+
                 if (viewMode === 'grid') {
                     container.appendChild(createGridCard(dataset, originalIndex));
                 } else {
@@ -1071,6 +1104,25 @@
                 };
             }
 
+            // Lesson Button URL next to Visualize Button
+            const lessonBtn = document.getElementById('modal-lesson-btn');
+            const rawLessonUrl = (dataset.Lesson || dataset.Visualization || '').trim();
+            if (lessonBtn) {
+                if (rawLessonUrl && rawLessonUrl !== '' && rawLessonUrl !== '#') {
+                    let finalUrl = rawLessonUrl;
+                    if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://') && !finalUrl.startsWith('/')) {
+                        finalUrl = 'https://' + finalUrl;
+                    }
+                    lessonBtn.href = finalUrl;
+                    lessonBtn.classList.remove('hidden');
+                    lessonBtn.classList.add('inline-flex');
+                } else {
+                    lessonBtn.href = '#';
+                    lessonBtn.classList.add('hidden');
+                    lessonBtn.classList.remove('inline-flex');
+                }
+            }
+
             // Action URL
             const urlBtn = document.getElementById('modal-action-url');
             if (dataset.URL && dataset.URL !== '#') {
@@ -1081,15 +1133,21 @@
                 urlBtn.classList.add('pointer-events-none', 'opacity-50');
             }
 
-            // CODAP Visualization URL
+            // CODAP / External Visualization URL Banner
             const vizSection = document.getElementById('modal-viz-section');
             const vizBannerBtn = document.getElementById('modal-viz-banner-btn');
 
-            if (dataset.Visualization && dataset.Visualization.trim() !== '' && dataset.Visualization !== '#') {
-                vizBannerBtn.href = dataset.Visualization;
-                vizSection.classList.remove('hidden');
-            } else {
-                vizSection.classList.add('hidden');
+            if (vizSection && vizBannerBtn) {
+                if (rawLessonUrl && rawLessonUrl !== '' && rawLessonUrl !== '#') {
+                    let finalUrl = rawLessonUrl;
+                    if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://') && !finalUrl.startsWith('/')) {
+                        finalUrl = 'https://' + finalUrl;
+                    }
+                    vizBannerBtn.href = finalUrl;
+                    vizSection.classList.remove('hidden');
+                } else {
+                    vizSection.classList.add('hidden');
+                }
             }
 
             // Display modal
@@ -1446,23 +1504,14 @@
 
                             const colInfoEl = document.getElementById('col-info');
                             if (colInfoEl) {
-                                colInfoEl.textContent = 'Column: ' + matchedCol + ' | Rows: ' + N + ' | Mean: ' + mean.toFixed(2) + ' | StdDev: ' + stdev.toFixed(2) + filterSummary;
+                                colInfoEl.textContent = 'Histogram & Boxplot: Column = ' + matchedCol + ' | Rows = ' + N + ' | Mean = ' + mean.toFixed(2) + ' | StdDev = ' + stdev.toFixed(2) + filterSummary;
                             }
 
-                            // 4. Add pre-populated formulas and parameters
+                            // 4. Add pre-populated formulas and parameters (Histogram + Boxplot)
                             calculator.setExpression({ id: 'data_l', latex: 'L=\\\\left[' + values.join(',') + '\\\\right]', color: Desmos.Colors.BLUE });
                             calculator.setExpression({ id: 'bin_w', latex: 'w=' + binWidth });
                             calculator.setExpression({ id: 'hist', latex: '\\\\operatorname{histogram}\\\\left(L,w\\\\right)', color: Desmos.Colors.BLUE });
-                            calculator.setExpression({ id: 'mean_m', latex: 'm=\\\\operatorname{mean}\\\\left(L\\\\right)', color: Desmos.Colors.BLACK });
-                            calculator.setExpression({ id: 'stdev_s', latex: 's=\\\\operatorname{stdev}\\\\left(L\\\\right)', color: Desmos.Colors.GRAY });
-                            calculator.setExpression({ id: 'line_m', latex: 'x=m', color: Desmos.Colors.BLACK, lineStyle: Desmos.Styles.DASHED, label: 'Mean (' + mean.toFixed(1) + ')', showLabel: true });
-                            calculator.setExpression({ id: 'sd_p1', latex: 'x=m+s', color: Desmos.Colors.BLUE, lineStyle: Desmos.Styles.DASHED, label: '+1 SD', showLabel: true });
-                            calculator.setExpression({ id: 'sd_m1', latex: 'x=m-s', color: Desmos.Colors.BLUE, lineStyle: Desmos.Styles.DASHED, label: '-1 SD', showLabel: true });
-                            calculator.setExpression({ id: 'sd_p2', latex: 'x=m+2s', color: Desmos.Colors.PURPLE, lineStyle: Desmos.Styles.DASHED, label: '+2 SD', showLabel: true });
-                            calculator.setExpression({ id: 'sd_m2', latex: 'x=m-2s', color: Desmos.Colors.PURPLE, lineStyle: Desmos.Styles.DASHED, label: '-2 SD', showLabel: true });
-                            calculator.setExpression({ id: 'sd_p3', latex: 'x=m+3s', color: Desmos.Colors.RED, lineStyle: Desmos.Styles.DASHED, label: '+3 SD', showLabel: true });
-                            calculator.setExpression({ id: 'sd_m3', latex: 'x=m-3s', color: Desmos.Colors.RED, lineStyle: Desmos.Styles.DASHED, label: '-3 SD', showLabel: true });
-                            calculator.setExpression({ id: 'norm_pdf', latex: 'f\\\\left(x\\\\right)=\\\\frac{' + N + ' \\\\cdot w}{s\\\\cdot\\\\sqrt{2\\\\pi}}\\\\exp\\\\left(-0.5\\\\cdot\\\\left(\\\\frac{x-m}{s}\\\\right)^{2}\\\\right)', color: Desmos.Colors.RED, lineWidth: 3, label: 'Normal Curve', showLabel: true });
+                            calculator.setExpression({ id: 'box', latex: '\\\\operatorname{boxplot}\\\\left(L\\\\right)', color: Desmos.Colors.PURPLE });
 
                             const peakY = (N * binWidth) / (stdev * Math.sqrt(2 * Math.PI));
                             calculator.setMathBounds({
