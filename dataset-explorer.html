@@ -260,6 +260,12 @@
                         </div>
                     </div>
 
+                    <!-- Filter Constraint Text (Shown above X and Y dropdowns if dataset has Filter fields) -->
+                    <div id="modal-filter-constraint-box" class="hidden text-xs text-blue-900 bg-blue-50/80 px-3.5 py-2 rounded-xl border border-blue-200/70 items-center gap-2">
+                        <i class="fa-solid fa-filter text-blue-600 text-[11px] shrink-0"></i>
+                        <span>This data has been filtered with the following constraint: <strong id="modal-filter-constraint-val" class="font-bold text-blue-950">entity = United States</strong></span>
+                    </div>
+
                     <!-- Underneath Controls: Dropdowns & Visualize Button -->
                     <div class="flex items-center gap-3 shrink-0 flex-wrap sm:flex-nowrap pt-2 border-t border-slate-100">
                         <!-- Distribution Type: Single Field Dropdown -->
@@ -930,7 +936,7 @@
             return `<${tag} class="${listClass}">${lis}</${tag}>`;
         }
 
-        function formatDictionaryTable(str) {
+        function formatDictionaryTable(str, datasetIndex = null) {
             if (!str) return '<p class="text-slate-400 italic">No data dictionary available</p>';
             const items = str.split('|').map(s => s.trim()).filter(Boolean);
             if (items.length === 0) return '<p class="text-slate-400 italic">No data dictionary available</p>';
@@ -941,34 +947,31 @@
                 const desc = parts.slice(1).join(':').trim();
 
                 let displayTerm = rawKey;
-                let badgeHTML = '';
+                let termBadgeHTML = '';
+                let desmosColHTML = '<span class="text-slate-300">-</span>';
 
                 if (rawKey.includes('**')) {
                     // Filter field e.g. entity**{United States}
                     const match = rawKey.match(/^([^*]+)\*\*\{([^}]+)\}/);
                     if (match) {
                         displayTerm = match[1].trim();
-                        const filterVal = match[2].trim();
-                        badgeHTML = `
-                            <span class="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-sans font-semibold inline-flex items-center gap-1 shrink-0" title="Filter field (Default: ${filterVal})">
-                                <i class="fa-solid fa-filter text-[9px] text-blue-500"></i> Filter: ${filterVal}
-                            </span>
-                        `;
                     } else {
                         displayTerm = rawKey.replace(/\*\*/g, '').replace(/\{[^}]*\}/g, '').trim();
-                        badgeHTML = `
-                            <span class="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-sans font-semibold inline-flex items-center gap-1 shrink-0" title="Filter field">
-                                <i class="fa-solid fa-filter text-[9px] text-blue-500"></i> Filter Field
-                            </span>
-                        `;
                     }
+                    termBadgeHTML = '';
                 } else if (rawKey.endsWith('*')) {
                     // Queryable field e.g. math_score*
-                    displayTerm = rawKey.slice(0, -1).trim();
-                    badgeHTML = `
-                        <span class="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-sans font-semibold inline-flex items-center gap-1 shrink-0" title="Queryable field for analysis">
-                            <i class="fa-solid fa-bolt text-[9px] text-amber-500"></i> Queryable
-                        </span>
+                    const cleanTerm = rawKey.slice(0, -1).trim();
+                    displayTerm = cleanTerm + '*'; // Simple '*' next to queryable field name
+                    
+                    const safeTerm = cleanTerm.replace(/'/g, "\\'");
+                    const safeIdx = (datasetIndex !== null && datasetIndex !== undefined) ? datasetIndex : 'currentModalDatasetIndex';
+                    
+                    desmosColHTML = `
+                        <button onclick="copyFieldDesmosList(${safeIdx}, '${safeTerm}', this)" class="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-[11px] font-sans font-semibold inline-flex items-center gap-1.5 transition shadow-2xs" title="Copy ALL field data formatted as Desmos list e.g. [1, 2, 3]">
+                            <i class="fa-solid fa-copy text-[10px] text-amber-700"></i>
+                            <span>Copy Desmos List</span>
+                        </button>
                     `;
                 }
 
@@ -976,9 +979,10 @@
                     <tr class="hover:bg-slate-50/80 transition">
                         <td class="py-2.5 px-3 text-slate-800 font-mono font-bold text-[11px] bg-slate-50/50 flex items-center justify-between gap-2">
                             <span>${displayTerm}</span>
-                            ${badgeHTML}
+                            ${termBadgeHTML}
                         </td>
                         <td class="py-2.5 px-3 text-slate-600 text-xs">${desc || '-'}</td>
+                        <td class="py-2.5 px-3 text-xs text-left">${desmosColHTML}</td>
                     </tr>
                 `;
             }).join('');
@@ -988,8 +992,9 @@
                     <table class="w-full text-left border-collapse bg-white">
                         <thead>
                             <tr class="bg-slate-100 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                                <th class="py-2.5 px-3 w-1/3">Field / Term</th>
-                                <th class="py-2.5 px-3 w-2/3">Description</th>
+                                <th class="py-2.5 px-3 w-1/4">Field / Term</th>
+                                <th class="py-2.5 px-3 w-2/4">Description</th>
+                                <th class="py-2.5 px-3 w-1/4">Desmos Data</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
@@ -1000,7 +1005,135 @@
             `;
         }
 
+        function applyFiltersMain(rows, filters) {
+            if (!filters || filters.length === 0 || !rows || rows.length === 0) return rows;
+            const keys = Object.keys(rows[0]);
+            return rows.filter(row => {
+                return filters.every(rule => {
+                    if (!rule.field || !rule.defaultValue) return true;
+                    const normField = rule.field.trim().toLowerCase();
+                    const matchedCol = keys.find(k => k.trim().toLowerCase() === normField) ||
+                                       keys.find(k => k.trim().toLowerCase().includes(normField));
+                    if (!matchedCol) return true;
+                    const targetVal = rule.defaultValue.trim().toLowerCase();
+                    const rowVal = String(row[matchedCol] || '').trim().toLowerCase();
+                    return rowVal === targetVal;
+                });
+            });
+        }
+
+        function copyFieldDesmosList(datasetIndex, fieldName, btnEl) {
+            const dataset = (typeof datasetIndex === 'number' && datasetIndex >= 0) ? allDatasets[datasetIndex] : (allDatasets[currentModalDatasetIndex] || allDatasets[0]);
+            if (!dataset) return;
+
+            const originalHTML = btnEl ? btnEl.innerHTML : '';
+            if (btnEl) {
+                btnEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-[9px]"></i> Fetching...';
+                btnEl.disabled = true;
+            }
+
+            const targetUrl = getRawCsvUrl(dataset.URL, dataset.Name);
+            const filterRules = dataset.FilterFields || [];
+
+            Papa.parse(targetUrl, {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    try {
+                        let rows = results.data || [];
+                        rows = applyFiltersMain(rows, filterRules);
+
+                        if (rows.length === 0) {
+                            if (btnEl) {
+                                btnEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-amber-600 text-[9px]"></i> No Data';
+                                setTimeout(() => { btnEl.innerHTML = originalHTML; btnEl.disabled = false; }, 2000);
+                            }
+                            return;
+                        }
+
+                        const sampleRow = rows[0];
+                        const keys = Object.keys(sampleRow);
+                        const normField = fieldName.trim().toLowerCase();
+                        const matchedCol = keys.find(k => k.trim().toLowerCase() === normField) ||
+                                           keys.find(k => k.trim().toLowerCase().includes(normField)) ||
+                                           keys[0];
+
+                        // Extract ALL numeric data rows (no 100 limit)
+                        const values = [];
+                        for (let i = 0; i < rows.length; i++) {
+                            const rawVal = rows[i][matchedCol];
+                            if (rawVal !== undefined && rawVal !== null) {
+                                const num = parseFloat(String(rawVal).trim());
+                                if (!isNaN(num)) {
+                                    values.push(num);
+                                }
+                            }
+                        }
+
+                        if (values.length === 0) {
+                            if (btnEl) {
+                                btnEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-amber-600 text-[9px]"></i> No Numbers';
+                                setTimeout(() => { btnEl.innerHTML = originalHTML; btnEl.disabled = false; }, 2000);
+                            }
+                            return;
+                        }
+
+                        const desmosListStr = '[' + values.join(', ') + ']';
+
+                        const showCopied = () => {
+                            if (btnEl) {
+                                btnEl.innerHTML = `<i class="fa-solid fa-check text-emerald-600 text-[9px]"></i> <span class="text-emerald-800">Copied (${values.length})!</span>`;
+                                btnEl.classList.remove('bg-amber-50', 'hover:bg-amber-100', 'border-amber-300');
+                                btnEl.classList.add('bg-emerald-100', 'border-emerald-300');
+                                setTimeout(() => {
+                                    btnEl.innerHTML = originalHTML;
+                                    btnEl.classList.remove('bg-emerald-100', 'border-emerald-300');
+                                    btnEl.classList.add('bg-amber-50', 'hover:bg-amber-100', 'border-amber-300');
+                                    btnEl.disabled = false;
+                                }, 2500);
+                            }
+                        };
+
+                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                            navigator.clipboard.writeText(desmosListStr).then(showCopied).catch(() => {
+                                const temp = document.createElement('textarea');
+                                temp.value = desmosListStr;
+                                document.body.appendChild(temp);
+                                temp.select();
+                                document.execCommand('copy');
+                                document.body.removeChild(temp);
+                                showCopied();
+                            });
+                        } else {
+                            const temp = document.createElement('textarea');
+                            temp.value = desmosListStr;
+                            document.body.appendChild(temp);
+                            temp.select();
+                            document.execCommand('copy');
+                            document.body.removeChild(temp);
+                            showCopied();
+                        }
+                    } catch (e) {
+                        console.error('Error extracting copy list:', e);
+                        if (btnEl) {
+                            btnEl.innerHTML = '<i class="fa-solid fa-xmark text-red-500 text-[9px]"></i> Error';
+                            setTimeout(() => { btnEl.innerHTML = originalHTML; btnEl.disabled = false; }, 2000);
+                        }
+                    }
+                },
+                error: function(err) {
+                    console.error('Error fetching CSV for copy:', err);
+                    if (btnEl) {
+                        btnEl.innerHTML = '<i class="fa-solid fa-xmark text-red-500 text-[9px]"></i> Error';
+                        setTimeout(() => { btnEl.innerHTML = originalHTML; btnEl.disabled = false; }, 2000);
+                    }
+                }
+            });
+        }
+
         function openModal(index) {
+            currentModalDatasetIndex = index;
             const dataset = allDatasets[index];
             if (!dataset) return;
 
@@ -1035,7 +1168,7 @@
             document.getElementById('modal-questions-container').innerHTML = formatPipeUnorderedList(dataset.Questions, false);
 
             // Dictionary (' | ' delimited -> Data Table)
-            document.getElementById('modal-dictionary-container').innerHTML = formatDictionaryTable(dataset.Dictionary);
+            document.getElementById('modal-dictionary-container').innerHTML = formatDictionaryTable(dataset.Dictionary, index);
 
             // Queryable Fields Dropdowns for Distribution and Model dataset types
             const distContainer = document.getElementById('modal-dist-select-container');
@@ -1120,6 +1253,25 @@
                     lessonBtn.href = '#';
                     lessonBtn.classList.add('hidden');
                     lessonBtn.classList.remove('inline-flex');
+                }
+            }
+
+            // Filter Fields Constraint Text above X and Y Dropdowns
+            const constraintBox = document.getElementById('modal-filter-constraint-box');
+            const constraintVal = document.getElementById('modal-filter-constraint-val');
+            const filterFields = dataset.FilterFields || [];
+
+            if (constraintBox && constraintVal) {
+                if (filterFields.length > 0) {
+                    const filterSummary = filterFields.map(f => {
+                        return f.defaultValue ? `'${f.field}' = '${f.defaultValue}'` : `'${f.field}'`;
+                    }).join(' and ');
+                    constraintVal.textContent = filterSummary;
+                    constraintBox.classList.remove('hidden');
+                    constraintBox.classList.add('flex');
+                } else {
+                    constraintBox.classList.add('hidden');
+                    constraintBox.classList.remove('flex');
                 }
             }
 
@@ -1248,20 +1400,19 @@
 
                         function applyFilters(rows, filters) {
                             if (!filters || filters.length === 0 || !rows || rows.length === 0) return rows;
-                            let filtered = rows;
                             const keys = Object.keys(rows[0]);
-                            filters.forEach(rule => {
-                                if (!rule.field || !rule.defaultValue) return;
-                                const normField = rule.field.trim().toLowerCase();
-                                const matchedCol = keys.find(k => k.trim().toLowerCase() === normField) ||
-                                                   keys.find(k => k.trim().toLowerCase().includes(normField));
-                                if (matchedCol) {
+                            return rows.filter(row => {
+                                return filters.every(rule => {
+                                    if (!rule.field || !rule.defaultValue) return true;
+                                    const normField = rule.field.trim().toLowerCase();
+                                    const matchedCol = keys.find(k => k.trim().toLowerCase() === normField) ||
+                                                       keys.find(k => k.trim().toLowerCase().includes(normField));
+                                    if (!matchedCol) return true;
                                     const targetVal = rule.defaultValue.trim().toLowerCase();
-                                    const res = filtered.filter(r => String(r[matchedCol] || '').trim().toLowerCase() === targetVal);
-                                    if (res.length > 0) filtered = res;
-                                }
+                                    const rowVal = String(row[matchedCol] || '').trim().toLowerCase();
+                                    return rowVal === targetVal;
+                                });
                             });
-                            return filtered;
                         }
 
                         function renderScatterplot(rawRows, xName, yName, filters) {
@@ -1434,20 +1585,19 @@
 
                         function applyFilters(rows, filters) {
                             if (!filters || filters.length === 0 || !rows || rows.length === 0) return rows;
-                            let filtered = rows;
                             const keys = Object.keys(rows[0]);
-                            filters.forEach(rule => {
-                                if (!rule.field || !rule.defaultValue) return;
-                                const normField = rule.field.trim().toLowerCase();
-                                const matchedCol = keys.find(k => k.trim().toLowerCase() === normField) ||
-                                                   keys.find(k => k.trim().toLowerCase().includes(normField));
-                                if (matchedCol) {
+                            return rows.filter(row => {
+                                return filters.every(rule => {
+                                    if (!rule.field || !rule.defaultValue) return true;
+                                    const normField = rule.field.trim().toLowerCase();
+                                    const matchedCol = keys.find(k => k.trim().toLowerCase() === normField) ||
+                                                       keys.find(k => k.trim().toLowerCase().includes(normField));
+                                    if (!matchedCol) return true;
                                     const targetVal = rule.defaultValue.trim().toLowerCase();
-                                    const res = filtered.filter(r => String(r[matchedCol] || '').trim().toLowerCase() === targetVal);
-                                    if (res.length > 0) filtered = res;
-                                }
+                                    const rowVal = String(row[matchedCol] || '').trim().toLowerCase();
+                                    return rowVal === targetVal;
+                                });
                             });
-                            return filtered;
                         }
 
                         function renderHistogram(rawRows, targetField, filters) {
