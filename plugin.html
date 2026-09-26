@@ -2,103 +2,115 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>CSV Auto-Plotter Plugin</title>
-  <!-- Official CODAP Interface Helper -->
+  <title>Universal CSV Plotter</title>
   <script src="https://concord-consortium.github.io/codap-data-interactives/Common/js/iframe-phone.js"></script>
   <script src="https://concord-consortium.github.io/codap-data-interactives/Common/js/CodapInterface.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
-    body { font-family: system-ui, sans-serif; padding: 12px; margin: 0; font-size: 14px; }
-    #status { color: #333; line-height: 1.4; }
+    body { font-family: system-ui, sans-serif; padding: 10px; margin: 0; font-size: 13px; }
+    #status { color: #333; line-height: 1.4; word-break: break-word; }
   </style>
 </head>
 <body>
   <div id="status">Connecting to CODAP...</div>
 
   <script>
-    const CSV_URL = "https://raw.githubusercontent.com/daniel-lim-ocid/datasets/refs/heads/main/fuel_price_US_ordered.csv";
+    // 1. Read parameters passed in the plugin's query string
+    const urlParams = new URLSearchParams(window.location.search);
+    const csvUrl = urlParams.get("csv");
+    const requestedX = urlParams.get("x"); // optional specific column
+    const requestedY = urlParams.get("y"); // optional specific column
+    const docTitle = urlParams.get("title") || "Dataset";
 
-    // 1. Initialize plugin connection with CODAP
-    codapInterface.init({
-      name: "CSVPlotter",
-      title: "Data Importer",
-      version: "1.0",
-      dimensions: { width: 280, height: 120 }
-    }).then(async () => {
-      const status = document.getElementById("status");
-      status.innerText = "Downloading CSV...";
+    if (!csvUrl) {
+      document.getElementById("status").innerText = "Error: Missing 'csv' URL parameter.";
+    } else {
+      runImporter();
+    }
 
-      // 2. Fetch and parse CSV
-      const res = await fetch(CSV_URL);
-      const csvText = await res.text();
+    async function runImporter() {
+      try {
+        await codapInterface.init({
+          name: "UniversalPlotter",
+          title: "Data Importer",
+          version: "1.0",
+          dimensions: { width: 280, height: 120 }
+        });
 
-      const parsed = Papa.parse(csvText, {
-        header: true,
-        dynamicTyping: true,
-        skipEmptyLines: true
-      });
+        const status = document.getElementById("status");
+        status.innerText = "Fetching CSV data...";
 
-      const headers = parsed.meta.fields;
-      const xCol = headers[0]; // First column
-      const yCol = headers[1]; // Second column
+        // 2. Fetch and parse arbitrary CSV
+        const res = await fetch(csvUrl);
+        const csvText = await res.text();
 
-      status.innerText = `Importing ${parsed.data.length} records...`;
+        const parsed = Papa.parse(csvText, {
+          header: true,
+          dynamicTyping: true,
+          skipEmptyLines: true
+        });
 
-      // 3. Create Dataset (Data Context)
-      const dataContextName = "FuelData";
-      await codapInterface.sendRequest({
-        action: "create",
-        resource: "dataContext",
-        values: {
-          name: dataContextName,
-          title: "US Fuel Prices",
-          collections: [{
-            name: "Cases",
-            attrs: headers.map(h => ({ name: h }))
-          }]
-        }
-      });
+        const headers = parsed.meta.fields;
+        const xCol = requestedX && headers.includes(requestedX) ? requestedX : headers[0];
+        const yCol = requestedY && headers.includes(requestedY) ? requestedY : headers[1];
 
-      // 4. Send items in batches
-      const chunkSize = 500;
-      for (let i = 0; i < parsed.data.length; i += chunkSize) {
+        status.innerText = `Loading ${parsed.data.length} records...`;
+
+        // 3. Create generic context
+        const dataContextName = "ImportedData";
         await codapInterface.sendRequest({
           action: "create",
-          resource: `dataContext[${dataContextName}].item`,
-          values: parsed.data.slice(i, i + chunkSize)
+          resource: "dataContext",
+          values: {
+            name: dataContextName,
+            title: docTitle,
+            collections: [{
+              name: "Cases",
+              attrs: headers.map(h => ({ name: h }))
+            }]
+          }
         });
+
+        // 4. Batch insert
+        const chunkSize = 500;
+        for (let i = 0; i < parsed.data.length; i += chunkSize) {
+          await codapInterface.sendRequest({
+            action: "create",
+            resource: `dataContext[${dataContextName}].item`,
+            values: parsed.data.slice(i, i + chunkSize)
+          });
+        }
+
+        // 5. Build table and plot
+        await codapInterface.sendRequest({
+          action: "create",
+          resource: "component",
+          values: {
+            type: "caseTable",
+            dataContext: dataContextName,
+            dimensions: { width: 480, height: 420 },
+            position: { left: 320, top: 10 }
+          }
+        });
+
+        await codapInterface.sendRequest({
+          action: "create",
+          resource: "component",
+          values: {
+            type: "graph",
+            dataContext: dataContextName,
+            xAttributeName: xCol,
+            yAttributeName: yCol,
+            dimensions: { width: 500, height: 420 },
+            position: { left: 815, top: 10 }
+          }
+        });
+
+        status.innerText = `Ready! Plotted ${xCol} vs ${yCol}`;
+      } catch (err) {
+        document.getElementById("status").innerText = "Error: " + err.message;
       }
-
-      // 5. Open the Case Table
-      await codapInterface.sendRequest({
-        action: "create",
-        resource: "component",
-        values: {
-          type: "caseTable",
-          dataContext: dataContextName,
-          dimensions: { width: 480, height: 420 },
-          position: { left: 320, top: 10 }
-        }
-      });
-
-      // 6. Spawn the Scatter Plot automatically
-      await codapInterface.sendRequest({
-        action: "create",
-        resource: "component",
-        values: {
-          type: "graph",
-          dataContext: dataContextName,
-          xAttributeName: xCol,
-          yAttributeName: yCol,
-          dimensions: { width: 500, height: 420 },
-          position: { left: 815, top: 10 }
-        }
-      });
-
-      status.innerText = `Done! Plotted ${xCol} vs ${yCol}`;
-    }).catch(err => {
-      document.getElementById("status").innerText = "Error: " + err.message;
-    });
+    }
   </script>
 </body>
 </html>
