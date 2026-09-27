@@ -302,23 +302,30 @@
 
                         <button id="modal-visualize-btn" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
                             <i class="fa-solid fa-chart-column"></i>
-                            <span>Visualize</span>
+                            <span>Desmos</span>
                         </button>
 
-                        <!-- Lesson Button (Shown if dataset has Lesson URL) -->
-                        <a id="modal-lesson-btn" href="#" target="_blank" rel="noopener noreferrer" class="hidden px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition items-center gap-1.5 shadow-sm">
-                            <i class="fa-solid fa-book-open"></i>
-                            <span>Lesson</span>
-                        </a>
+                        <button id="modal-codap-btn" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-chart-pie"></i>
+                            <span>CODAP</span>
+                        </button>
                     </div>
                 </div>
 
                 <!-- Description Section -->
-                <div class="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm space-y-2">
+                <div class="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm space-y-2.5">
                     <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
                         <i class="fa-solid fa-align-left text-blue-500"></i> Description
                     </h3>
                     <p id="modal-description" class="text-sm text-slate-700 leading-relaxed font-normal">Dataset description goes here...</p>
+                    <div id="modal-source-container" class="hidden text-xs text-slate-500 pt-2 border-t border-slate-100 items-center gap-1.5 flex-wrap">
+                        <i class="fa-solid fa-link text-blue-500 text-[11px]"></i>
+                        <span class="font-semibold text-slate-600">Source:</span>
+                        <a id="modal-source-link" href="#" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline font-medium inline-flex items-center gap-1 transition">
+                            <span id="modal-source-text">View Source</span>
+                            <i class="fa-solid fa-up-right-from-square text-[9px]"></i>
+                        </a>
+                    </div>
                 </div>
 
                 <!-- Meta Grid (Grade, Subject, Type) -->
@@ -372,21 +379,6 @@
                     <div id="modal-dictionary-container" class="text-xs text-slate-700"></div>
                 </div>
 
-                <!-- Visualization Banner Section (Shown when CODAP URL exists) -->
-                <div id="modal-viz-section" class="hidden bg-gradient-to-r from-purple-50 to-indigo-50 p-4 sm:p-5 rounded-xl border border-purple-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                    <div class="space-y-1">
-                        <h3 class="text-xs font-bold uppercase tracking-wider text-purple-700 flex items-center gap-2">
-                            <i class="fa-solid fa-chart-pie text-purple-600"></i> CODAP Data Visualization
-                        </h3>
-                        <p class="text-xs text-purple-900 leading-relaxed">Analyze and visualize this dataset interactively using CODAP (Common Online Data Analysis Platform).</p>
-                    </div>
-                    <a id="modal-viz-banner-btn" href="#" target="_blank" rel="noopener noreferrer" class="w-full sm:w-auto px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-semibold transition shrink-0 flex items-center justify-center gap-2 shadow-sm">
-                        <i class="fa-solid fa-chart-column"></i>
-                        <span>Launch CODAP</span>
-                        <i class="fa-solid fa-up-right-from-square text-[10px]"></i>
-                    </a>
-                </div>
-
                 <!-- Size Guide Reference -->
                 <div id="modal-size-info" class="bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-sm text-xs text-slate-500 font-medium flex items-center gap-2">
                     <i class="fa-solid fa-info-circle text-blue-500"></i>
@@ -423,8 +415,7 @@
                 "Description": "Comprehensive standardized math assessment results from spring 2023 for elementary students across district schools.",
                 "Questions": "What is the average proficiency rate across grades? | Are there significant disparities in multiplication accuracy between Grade 3 and Grade 4? | Which domains require curriculum revision?",
                 "Dictionary": "entity**{United States}: Target geographic area | student_id: Unique anonymized student identification code | grade_level: Academic grade level (3-5) | math_score*: Raw score on 100-point scale | proficiency_level*: Categorical evaluation (Below, Basic, Proficient, Advanced) | testing_date: Date assessment was completed",
-                "URL": "https://raw.githubusercontent.com/daniel-lim-ocid/datasets/main/galton_parent_child_heights.csv",
-                "Lesson": "https://www.desmos.com"
+                "URL": "https://raw.githubusercontent.com/daniel-lim-ocid/datasets/main/galton_parent_child_heights.csv"
             },
             {
                 "Name": "High School Science Lab Experiments",
@@ -436,8 +427,7 @@
                 "Description": "A dataset detailing student laboratory experiment completion times, safety compliance ratings, and lab report scores.",
                 "Questions": "How does lab duration correlate with lab report scores? | Which safety protocols are most frequently flagged during experiments?",
                 "Dictionary": "lab_id: Unique lab session ID | topic: Scientific area | student_count: Number of participating students | average_score*: Class average score on lab report | compliance_pass: Binary flag for safety audit",
-                "URL": "https://raw.githubusercontent.com/daniel-lim-ocid/datasets/main/nba_players.csv",
-                "Lesson": "https://www.desmos.com/calculator"
+                "URL": "https://raw.githubusercontent.com/daniel-lim-ocid/datasets/main/nba_players.csv"
             },
             {
                 "Name": "Early Reading & Phonics Tracking",
@@ -449,8 +439,7 @@
                 "Description": "Fluency and phonemic awareness tracking data recorded weekly for early childhood education students.",
                 "Questions": "What percentage of Grade 1 students reach target words-per-minute by week 12? | Is phonics intervention effective across all early grades?",
                 "Dictionary": "student_id: Anonymized student code | week_num: Instructional week number | wpm*: Words read correctly per minute | phonics_accuracy*: Accuracy percentage on phonics diagnostic",
-                "URL": "https://raw.githubusercontent.com/daniel-lim-ocid/datasets/main/galton_parent_child_heights.csv",
-                "Lesson": ""
+                "URL": "https://raw.githubusercontent.com/daniel-lim-ocid/datasets/main/galton_parent_child_heights.csv"
             }
         ];
 
@@ -597,7 +586,7 @@
                     QueryableFields: meta.queryableFields,
                     FilterFields: meta.filterFields,
                     URL: getValue('URL') || '#',
-                    Lesson: getValue('Lesson', 'Visualization', 'CODAP', 'Lesson Plan', 'Lesson URL', 'Link')
+                    Source: getValue('Source', 'Source URL', 'Data Source', 'Dataset Source', 'Citation')
                 };
             }).filter(d => d.Name && d.Name.trim() !== '');
 
@@ -1149,6 +1138,43 @@
             // Description
             document.getElementById('modal-description').textContent = dataset.Description || 'No description provided for this dataset.';
 
+            // Source Link in Description Box
+            const sourceContainer = document.getElementById('modal-source-container');
+            const sourceLink = document.getElementById('modal-source-link');
+            const sourceText = document.getElementById('modal-source-text');
+            const rawSource = (dataset.Source || '').trim();
+
+            if (sourceContainer && sourceLink && sourceText) {
+                if (rawSource && rawSource !== '' && rawSource !== '#') {
+                    let sourceUrl = rawSource;
+                    let displayLabel = rawSource;
+
+                    if (rawSource.startsWith('http://') || rawSource.startsWith('https://') || rawSource.includes('www.') || rawSource.includes('.com') || rawSource.includes('.org') || rawSource.includes('.gov') || rawSource.includes('.edu')) {
+                        if (!sourceUrl.startsWith('http://') && !sourceUrl.startsWith('https://')) {
+                            sourceUrl = 'https://' + sourceUrl;
+                        }
+                        try {
+                            const parsedUrl = new URL(sourceUrl);
+                            displayLabel = parsedUrl.hostname.replace(/^www\./, '') + (parsedUrl.pathname !== '/' && parsedUrl.pathname.length > 1 ? parsedUrl.pathname.slice(0, 25) + '...' : '');
+                        } catch (e) {
+                            displayLabel = rawSource;
+                        }
+                    } else {
+                        if (dataset.URL && dataset.URL !== '#') {
+                            sourceUrl = dataset.URL;
+                        }
+                    }
+
+                    sourceLink.href = sourceUrl;
+                    sourceText.textContent = displayLabel;
+                    sourceContainer.classList.remove('hidden');
+                    sourceContainer.classList.add('flex');
+                } else {
+                    sourceContainer.classList.add('hidden');
+                    sourceContainer.classList.remove('flex');
+                }
+            }
+
             // Grade (Badges matching search cards)
             document.getElementById('modal-grade-container').innerHTML = `<div class="flex flex-wrap gap-1.5">${createCommaBadges(dataset.Grade, 'bg-indigo-50 text-indigo-700')}</div>`;
 
@@ -1221,7 +1247,7 @@
                 }
             }
 
-            // Visualize Button Click Event
+            // Desmos Button Click Event
             const vizBtn = document.getElementById('modal-visualize-btn');
             if (vizBtn) {
                 vizBtn.onclick = function() {
@@ -1237,23 +1263,20 @@
                 };
             }
 
-            // Lesson Button URL next to Visualize Button
-            const lessonBtn = document.getElementById('modal-lesson-btn');
-            const rawLessonUrl = (dataset.Lesson || dataset.Visualization || '').trim();
-            if (lessonBtn) {
-                if (rawLessonUrl && rawLessonUrl !== '' && rawLessonUrl !== '#') {
-                    let finalUrl = rawLessonUrl;
-                    if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://') && !finalUrl.startsWith('/')) {
-                        finalUrl = 'https://' + finalUrl;
+            // CODAP Button Click Event
+            const codapBtn = document.getElementById('modal-codap-btn');
+            if (codapBtn) {
+                codapBtn.onclick = function() {
+                    const dsType = (dataset.Type || '').trim().toLowerCase();
+                    if (dsType === 'model') {
+                        const xVal = modelXSelect ? modelXSelect.value : '';
+                        const yVal = modelYSelect ? modelYSelect.value : '';
+                        openCodapVisualization(index, xVal, yVal);
+                    } else {
+                        const selectedField = distSelect ? distSelect.value : '';
+                        openCodapVisualization(index, selectedField, '');
                     }
-                    lessonBtn.href = finalUrl;
-                    lessonBtn.classList.remove('hidden');
-                    lessonBtn.classList.add('inline-flex');
-                } else {
-                    lessonBtn.href = '#';
-                    lessonBtn.classList.add('hidden');
-                    lessonBtn.classList.remove('inline-flex');
-                }
+                };
             }
 
             // Filter Fields Constraint Text above X and Y Dropdowns
@@ -1283,23 +1306,6 @@
             } else {
                 urlBtn.href = '#';
                 urlBtn.classList.add('pointer-events-none', 'opacity-50');
-            }
-
-            // CODAP / External Visualization URL Banner
-            const vizSection = document.getElementById('modal-viz-section');
-            const vizBannerBtn = document.getElementById('modal-viz-banner-btn');
-
-            if (vizSection && vizBannerBtn) {
-                if (rawLessonUrl && rawLessonUrl !== '' && rawLessonUrl !== '#') {
-                    let finalUrl = rawLessonUrl;
-                    if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://') && !finalUrl.startsWith('/')) {
-                        finalUrl = 'https://' + finalUrl;
-                    }
-                    vizBannerBtn.href = finalUrl;
-                    vizSection.classList.remove('hidden');
-                } else {
-                    vizSection.classList.add('hidden');
-                }
             }
 
             // Display modal
@@ -1337,6 +1343,43 @@
                 return 'https://raw.githubusercontent.com/daniel-lim-ocid/datasets/main/nba_players.csv';
             }
             return 'https://raw.githubusercontent.com/daniel-lim-ocid/datasets/main/galton_parent_child_heights.csv';
+        }
+
+        function generateCodapUrl({ csvUrl, xColumn, yColumn, title }) {
+            const pluginBase = "https://danielflim.github.io/plugin.html";
+
+            // Build the plugin query string
+            const pluginParams = new URLSearchParams({
+                csv: csvUrl,
+                title: title || "Dataset"
+            });
+            if (xColumn) pluginParams.append("x", xColumn);
+            if (yColumn) pluginParams.append("y", yColumn);
+
+            const fullPluginUrl = `${pluginBase}?${pluginParams.toString()}`;
+
+            // Wrap in CODAP launcher
+            return `https://codap.concord.org/releases/latest/static/dg/en/cert/index.html?di=${encodeURIComponent(fullPluginUrl)}`;
+        }
+
+        function openCodapVisualization(index = currentModalDatasetIndex, xField = '', yField = '') {
+            const dataset = (typeof index === 'number' && index >= 0) ? allDatasets[index] : (allDatasets[currentModalDatasetIndex] || allDatasets[0]);
+            if (!dataset) return;
+
+            const targetUrl = getRawCsvUrl(dataset.URL, dataset.Name);
+            if (!targetUrl || targetUrl === '#') {
+                alert('No valid CSV URL available for CODAP visualization.');
+                return;
+            }
+
+            const codapUrl = generateCodapUrl({
+                csvUrl: targetUrl,
+                xColumn: xField,
+                yColumn: yField,
+                title: dataset.Name || "Dataset"
+            });
+
+            window.open(codapUrl, '_blank');
         }
 
         function openDesmosModelVisualization(index = currentModalDatasetIndex, xField = '', yField = '') {
