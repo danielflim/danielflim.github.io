@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Math Video Player</title>
+  <style>
+    /* Reset & Base Styles */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #ffffff;
+      color: #1f2937;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    /* Seamless Embed Container */
+    .interactive-video-player {
+      width: 100%;
+      max-width: 900px;
+      background-color: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Video Frame */
+    .video-wrapper {
+      position: relative;
+      width: 100%;
+      background-color: #000000;
+      aspect-ratio: 16 / 9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    /* Controls Bar */
+    .controls-bar {
+      display: flex;
+      flex-direction: column;
+      background-color: #ffffff;
+      border-top: 1px solid #f3f4f6;
+      padding: 12px 16px;
+      gap: 10px;
+      user-select: none;
+    }
+
+    /* Timeline Progress Slider */
+    .progress-container {
+      position: relative;
+      width: 100%;
+      height: 14px;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .progress-track {
+      position: absolute;
+      width: 100%;
+      height: 6px;
+      background-color: #e5e7eb;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-filled {
+      height: 100%;
+      width: 0%;
+      background-color: #2563eb;
+      border-radius: 3px;
+      transition: width 0.1s linear;
+    }
+
+    /* Checkpoint Markers on Progress Bar */
+    .checkpoint-marker {
+      position: absolute;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 14px;
+      height: 14px;
+      background-color: #f59e0b;
+      border: 2px solid #ffffff;
+      border-radius: 50%;
+      z-index: 4;
+      cursor: pointer;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+      transition: transform 0.15s ease, background-color 0.2s ease;
+    }
+
+    .checkpoint-marker:hover {
+      transform: translate(-50%, -50%) scale(1.3);
+    }
+
+    .checkpoint-marker.completed {
+      background-color: #10b981;
+    }
+
+    .checkpoint-tooltip {
+      position: absolute;
+      bottom: 22px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #1f2937;
+      color: #ffffff;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    .checkpoint-marker:hover .checkpoint-tooltip {
+      opacity: 1;
+    }
+
+    /* Bottom Control Buttons Row */
+    .controls-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .controls-left, .controls-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-control {
+      background: none;
+      border: none;
+      color: #4b5563;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px;
+      border-radius: 6px;
+      transition: background-color 0.15s, color 0.15s;
+    }
+
+    .btn-control:hover {
+      background-color: #f3f4f6;
+      color: #111827;
+    }
+
+    .btn-control svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+    }
+
+    /* Highlighted Volume Control Group */
+    .volume-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .volume-slider {
+      width: 85px;
+      height: 6px;
+      appearance: none;
+      -webkit-appearance: none;
+      background: linear-gradient(to right, #2563eb 100%, #e5e7eb 100%);
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+      transition: background 0.1s linear;
+    }
+
+    .volume-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #2563eb;
+      border: 2px solid #ffffff;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+      cursor: pointer;
+      transition: transform 0.1s ease;
+    }
+
+    .volume-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    .volume-percentage {
+      font-size: 11px;
+      font-weight: 700;
+      color: #374151;
+      min-width: 34px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .time-display {
+      font-size: 13px;
+      font-weight: 500;
+      color: #6b7280;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Interactive Overlay Modal */
+    .checkpoint-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      z-index: 20;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease-in-out;
+    }
+
+    .checkpoint-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .quiz-card {
+      background-color: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 24px;
+      width: 100%;
+      max-width: 540px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+      animation: popIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes popIn {
+      0% { transform: scale(0.94); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .quiz-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .quiz-title-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .quiz-badge {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 3px 8px;
+      border-radius: 12px;
+    }
+
+    .quiz-badge.single {
+      background-color: #eff6ff;
+      color: #2563eb;
+    }
+
+    .quiz-badge.multiple {
+      background-color: #fdf2f8;
+      color: #db2777;
+    }
+
+    .quiz-time {
+      font-size: 12px;
+      color: #9ca3af;
+      font-weight: 500;
+    }
+
+    .quiz-question {
+      font-size: 16px;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 16px;
+      line-height: 1.4;
+    }
+
+    .quiz-options {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .option-label {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      cursor: pointer;
+      background-color: #ffffff;
+      transition: background-color 0.15s, border-color 0.15s;
+    }
+
+    .option-label:hover {
+      background-color: #f9fafb;
+      border-color: #d1d5db;
+    }
+
+    .option-label input[type="radio"],
+    .option-label input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: #2563eb;
+      cursor: pointer;
+    }
+
+    .option-text {
+      font-size: 14px;
+      color: #374151;
+      font-weight: 400;
+    }
+
+    /* Feedback Banner */
+    .feedback-message {
+      display: none;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 16px;
+      line-height: 1.4;
+    }
+
+    .feedback-message.error {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background-color: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #dc2626;
+    }
+
+    .feedback-message.success {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background-color: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      color: #059669;
+    }
+
+    .quiz-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .btn-submit {
+      background-color: #2563eb;
+      color: #ffffff;
+      border: none;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.15s;
+    }
+
+    .btn-submit:hover {
+      background-color: #1d4ed8;
+    }
+
+    .btn-rewind {
+      background-color: #f3f4f6;
+      color: #4b5563;
+      border: 1px solid #d1d5db;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.15s;
+    }
+
+    .btn-rewind:hover {
+      background-color: #e5e7eb;
+      color: #111827;
+    }
+
+    /* Scroll the quiz card if the frame or screen is too short to show it all */
+    .checkpoint-overlay {
+      overflow-y: auto;
+      box-sizing: border-box;
+    }
+
+    .quiz-card {
+      margin: auto;
+      box-sizing: border-box;
+    }
+
+    /* Standard Fullscreen */
+    .interactive-video-player:fullscreen {
+      width: 100vw !important;
+      height: 100vh !important;
+      height: 100dvh !important;
+      max-width: none !important;
+      max-height: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: none !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      background-color: #000000 !important;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: space-between !important;
+      overflow: hidden !important;
+    }
+
+    .interactive-video-player:fullscreen .video-wrapper {
+      flex: 1 1 0 !important;
+      min-height: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      aspect-ratio: auto !important;
+      position: relative !important;
+      background-color: #000000 !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      overflow: hidden !important;
+    }
+
+    .interactive-video-player:fullscreen video {
+      width: 100% !important;
+      height: 100% !important;
+      max-width: 100% !important;
+      max-height: 100% !important;
+      object-fit: contain !important;
+      display: block !important;
+    }
+
+    .interactive-video-player:fullscreen .controls-bar {
+      flex: 0 0 auto !important;
+      width: 100% !important;
+      background-color: #ffffff !important;
+      border-top: 1px solid #e5e7eb !important;
+      padding: 10px 16px !important;
+      box-sizing: border-box !important;
+      z-index: 30 !important;
+    }
+
+    .interactive-video-player:fullscreen .checkpoint-overlay {
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      z-index: 40 !important;
+      padding: 20px !important;
+      box-sizing: border-box !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      overflow-y: auto !important;
+    }
+
+    .interactive-video-player:fullscreen .quiz-card {
+      max-height: calc(100% - 20px) !important;
+      overflow-y: auto !important;
+      margin: auto !important;
+    }
+
+    /* WebKit Fullscreen (Safari, legacy WebKit) */
+    .interactive-video-player:-webkit-full-screen {
+      width: 100vw !important;
+      height: 100vh !important;
+      max-width: none !important;
+      max-height: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: none !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      background-color: #000000 !important;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: space-between !important;
+      overflow: hidden !important;
+    }
+
+    .interactive-video-player:-webkit-full-screen .video-wrapper {
+      flex: 1 1 0 !important;
+      min-height: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      aspect-ratio: auto !important;
+      position: relative !important;
+      background-color: #000000 !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      overflow: hidden !important;
+    }
+
+    .interactive-video-player:-webkit-full-screen video {
+      width: 100% !important;
+      height: 100% !important;
+      max-width: 100% !important;
+      max-height: 100% !important;
+      object-fit: contain !important;
+      display: block !important;
+    }
+
+    .interactive-video-player:-webkit-full-screen .controls-bar {
+      flex: 0 0 auto !important;
+      width: 100% !important;
+      background-color: #ffffff !important;
+      border-top: 1px solid #e5e7eb !important;
+      padding: 10px 16px !important;
+      box-sizing: border-box !important;
+      z-index: 30 !important;
+    }
+
+    .interactive-video-player:-webkit-full-screen .checkpoint-overlay {
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      z-index: 40 !important;
+      padding: 20px !important;
+      box-sizing: border-box !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      overflow-y: auto !important;
+    }
+
+    .interactive-video-player:-webkit-full-screen .quiz-card {
+      max-height: calc(100% - 20px) !important;
+      overflow-y: auto !important;
+      margin: auto !important;
+    }
+
+    /* Class-based fullscreen layout: applied via JS during native fullscreen AND during pseudo-fullscreen (Google Sites iframe fallback) */
+    .interactive-video-player.player-fullscreen,
+    .interactive-video-player.pseudo-fullscreen {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      height: 100dvh !important;
+      max-width: none !important;
+      max-height: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: none !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      background-color: #000000 !important;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: space-between !important;
+      overflow: hidden !important;
+      z-index: 2147483647 !important;
+    }
+
+    .interactive-video-player.player-fullscreen .video-wrapper,
+    .interactive-video-player.pseudo-fullscreen .video-wrapper {
+      flex: 1 1 0 !important;
+      min-height: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      aspect-ratio: auto !important;
+      position: relative !important;
+      background-color: #000000 !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      overflow: hidden !important;
+    }
+
+    .interactive-video-player.player-fullscreen video,
+    .interactive-video-player.pseudo-fullscreen video {
+      width: 100% !important;
+      height: 100% !important;
+      max-width: 100% !important;
+      max-height: 100% !important;
+      object-fit: contain !important;
+      display: block !important;
+    }
+
+    .interactive-video-player.player-fullscreen .controls-bar,
+    .interactive-video-player.pseudo-fullscreen .controls-bar {
+      flex: 0 0 auto !important;
+      width: 100% !important;
+      background-color: #ffffff !important;
+      border-top: 1px solid #e5e7eb !important;
+      padding: 10px 16px !important;
+      box-sizing: border-box !important;
+      z-index: 30 !important;
+    }
+
+    .interactive-video-player.player-fullscreen .checkpoint-overlay,
+    .interactive-video-player.pseudo-fullscreen .checkpoint-overlay {
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      z-index: 40 !important;
+      padding: 20px !important;
+      box-sizing: border-box !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      overflow-y: auto !important;
+    }
+
+    .interactive-video-player.player-fullscreen .quiz-card,
+    .interactive-video-player.pseudo-fullscreen .quiz-card {
+      max-height: calc(100% - 20px) !important;
+      overflow-y: auto !important;
+      margin: auto !important;
+    }
+
+    /* Compact adjustments for short screen viewports */
+    @media (max-height: 600px) {
+      .quiz-card {
+        padding: 14px 18px !important;
+      }
+      .quiz-header {
+        margin-bottom: 8px !important;
+      }
+      .quiz-question {
+        font-size: 14px !important;
+        margin-bottom: 8px !important;
+      }
+      .quiz-options {
+        gap: 6px !important;
+        margin-bottom: 10px !important;
+      }
+      .option-label {
+        padding: 6px 12px !important;
+      }
+      .option-text {
+        font-size: 13px !important;
+      }
+      .btn-submit,
+      .btn-rewind {
+        padding: 8px 14px !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Interactive Video Player Widget -->
+  <div class="interactive-video-player" id="player-container">
+    
+    <!-- Video Wrapper -->
+    <div class="video-wrapper" id="video-wrapper">
+      <video id="video-element" controls controlsList="nofullscreen" disablePictureInPicture playsinline preload="auto">
+        <source src="https://storage.googleapis.com/hidoe-math-standards/videos/sample.mp4" type="video/mp4">
+        Your browser does not support HTML5 video playback.
+      </video>
+
+      <!-- Checkpoint Interactive Question Overlay -->
+      <div class="checkpoint-overlay" id="checkpoint-overlay">
+        <div class="quiz-card" id="quiz-card">
+          <div class="quiz-header">
+            <div class="quiz-title-group">
+              <span class="quiz-badge" id="quiz-badge">Checkpoint</span>
+              <span class="quiz-time" id="quiz-time">0:00</span>
+            </div>
+          </div>
+          
+          <div class="quiz-question" id="quiz-question">Question text goes here?</div>
+          
+          <form id="quiz-form">
+            <div class="quiz-options" id="quiz-options">
+              <!-- Options populated dynamically -->
+            </div>
+
+            <div class="feedback-message" id="feedback-message"></div>
+
+            <div class="quiz-actions">
+              <button type="button" class="btn-rewind" id="btn-rewind">Rewind 3s</button>
+              <button type="submit" class="btn-submit" id="btn-submit">Submit Answer</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Additional Custom Controls Row (Fullscreen & Checkpoints Marker Track) -->
+    <div class="controls-bar">
+      <!-- Progress Track & Checkpoints -->
+      <div class="progress-container" id="progress-container">
+        <div class="progress-track">
+          <div class="progress-filled" id="progress-filled"></div>
+        </div>
+        <!-- Checkpoint Markers generated via JS -->
+      </div>
+
+      <!-- Controls Row -->
+      <div class="controls-row">
+        <div class="controls-left">
+          <span class="time-display" id="time-display">Checkpoints active at 0:02 and 0:03</span>
+        </div>
+
+        <div class="controls-right">
+          <!-- Fullscreen Toggle Button -->
+          <button class="btn-control" id="btn-fullscreen" title="Full Screen (F)">
+            <svg viewBox="0 0 24 24" id="fullscreen-enter-icon">
+              <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+            </svg>
+            <svg viewBox="0 0 24 24" id="fullscreen-exit-icon" style="display:none;">
+              <path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Configuration of Checkpoints
+    const checkpoints = [
+      {
+        id: 1,
+        time: 2.0, // seconds
+        type: 'single', // Single choice (one correct answer)
+        badgeText: 'Single Choice',
+        question: 'Checkpoint 1 (0:02): What mathematical rate of change is depicted at this point?',
+        options: [
+          { text: 'Constant positive rate of change (Linear)', correct: true },
+          { text: 'Accelerating growth rate (Exponential)', correct: false },
+          { text: 'Negative diminishing rate (Decay)', correct: false },
+          { text: 'Zero rate of change (Horizontal line)', correct: false }
+        ],
+        completed: false
+      },
+      {
+        id: 2,
+        time: 3.0, // seconds
+        type: 'multiple', // Multiple choice (ALL correct answers must be selected)
+        badgeText: 'Select All That Apply',
+        question: 'Checkpoint 2 (0:03): Select ALL statements that correctly describe this function (Multiple answers required):',
+        options: [
+          { text: 'The initial value / y-intercept is non-negative.', correct: true },
+          { text: 'The slope remains constant across the entire domain.', correct: true },
+          { text: 'The graph represents a discontinuous step function.', correct: false },
+          { text: 'The relationship between variables is proportional.', correct: true }
+        ],
+        completed: false
+      }
+    ];
+
+    // DOM Elements
+    const playerContainer = document.getElementById('player-container');
+    const video = document.getElementById('video-element');
+    const progressContainer = document.getElementById('progress-container');
+    const progressFilled = document.getElementById('progress-filled');
+    const btnFullscreen = document.getElementById('btn-fullscreen');
+    const fsEnterIcon = document.getElementById('fullscreen-enter-icon');
+    const fsExitIcon = document.getElementById('fullscreen-exit-icon');
+
+    // Quiz Overlay DOM Elements
+    const overlay = document.getElementById('checkpoint-overlay');
+    const quizBadge = document.getElementById('quiz-badge');
+    const quizTime = document.getElementById('quiz-time');
+    const quizQuestion = document.getElementById('quiz-question');
+    const quizOptions = document.getElementById('quiz-options');
+    const quizForm = document.getElementById('quiz-form');
+    const feedbackMsg = document.getElementById('feedback-message');
+    const btnRewind = document.getElementById('btn-rewind');
+
+    let currentCheckpoint = null;
+    let lastTime = 0;
+
+    // Format Seconds to MM:SS
+    function formatTime(seconds) {
+      if (isNaN(seconds)) return '0:00';
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    }
+
+    // Fullscreen Handler
+    // Real fullscreen is blocked inside iframes that lack the "allowfullscreen"
+    // permission (e.g. Google Sites embeds). In that case, fall back to an
+    // "expanded" mode that fills the embed frame instead.
+    function setFullscreenIcons(active) {
+      fsEnterIcon.style.display = active ? 'none' : 'block';
+      fsExitIcon.style.display = active ? 'block' : 'none';
+    }
+
+    function syncFullscreenState() {
+      const isNativeFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+      const isPseudoFs = playerContainer.classList.contains('pseudo-fullscreen');
+      const active = isNativeFs || isPseudoFs;
+
+      playerContainer.classList.toggle('player-fullscreen', isNativeFs);
+      setFullscreenIcons(active);
+    }
+
+    function setExpanded(on) {
+      playerContainer.classList.toggle('pseudo-fullscreen', on);
+      syncFullscreenState();
+    }
+
+    function toggleFullscreen() {
+      if (playerContainer.classList.contains('pseudo-fullscreen')) {
+        setExpanded(false);
+        return;
+      }
+      const fsElement = document.fullscreenElement || document.webkitFullscreenElement;
+      if (fsElement) {
+        (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+        return;
+      }
+      const request = playerContainer.requestFullscreen || playerContainer.webkitRequestFullscreen;
+      if (!request || document.fullscreenEnabled === false) {
+        setExpanded(true);
+        return;
+      }
+      try {
+        const result = request.call(playerContainer);
+        if (result && result.catch) {
+          result.catch(() => setExpanded(true));
+        }
+      } catch (err) {
+        setExpanded(true);
+      }
+    }
+
+    document.addEventListener('fullscreenchange', syncFullscreenState);
+    document.addEventListener('webkitfullscreenchange', syncFullscreenState);
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Escape' && playerContainer.classList.contains('pseudo-fullscreen')) {
+        setExpanded(false);
+      }
+    });
+
+    // Initialize Checkpoints on Progress Bar
+    function initCheckpointMarkers() {
+      const duration = video.duration;
+      if (!duration) return;
+
+      document.querySelectorAll('.checkpoint-marker').forEach(el => el.remove());
+
+      checkpoints.forEach(cp => {
+        const marker = document.createElement('div');
+        marker.className = `checkpoint-marker ${cp.completed ? 'completed' : ''}`;
+        marker.style.left = `${(cp.time / duration) * 100}%`;
+        marker.id = `marker-cp-${cp.id}`;
+
+        const tooltip = document.createElement('div');
+        tooltip.className = 'checkpoint-tooltip';
+        tooltip.innerText = `Checkpoint (${formatTime(cp.time)})`;
+        marker.appendChild(tooltip);
+
+        marker.addEventListener('click', (e) => {
+          e.stopPropagation();
+          video.currentTime = cp.time;
+          triggerCheckpoint(cp);
+        });
+
+        progressContainer.appendChild(marker);
+      });
+    }
+
+    // Time Update & Checkpoint Trigger Logic
+    video.addEventListener('timeupdate', () => {
+      const currentTime = video.currentTime;
+      const duration = video.duration;
+
+      if (duration) {
+        progressFilled.style.width = `${(currentTime / duration) * 100}%`;
+      }
+
+      checkpoints.forEach(cp => {
+        if (!cp.completed && lastTime < cp.time && currentTime >= cp.time) {
+          video.pause();
+          video.currentTime = cp.time;
+          triggerCheckpoint(cp);
+        }
+      });
+
+      lastTime = currentTime;
+    });
+
+    // Seek Video via Checkpoint Bar Click
+    progressContainer.addEventListener('click', (e) => {
+      if (overlay.classList.contains('active')) return;
+      const rect = progressContainer.getBoundingClientRect();
+      const pos = (e.clientX - rect.left) / rect.width;
+      video.currentTime = pos * video.duration;
+    });
+
+    // Display Checkpoint Quiz Overlay
+    function triggerCheckpoint(cp) {
+      currentCheckpoint = cp;
+      video.pause();
+
+      quizBadge.className = `quiz-badge ${cp.type}`;
+      quizBadge.innerText = cp.badgeText;
+      quizTime.innerText = formatTime(cp.time);
+      quizQuestion.innerText = cp.question;
+
+      quizOptions.innerHTML = '';
+      cp.options.forEach((opt, index) => {
+        const label = document.createElement('label');
+        label.className = 'option-label';
+
+        const inputType = cp.type === 'single' ? 'radio' : 'checkbox';
+        const inputName = cp.type === 'single' ? 'quiz-option' : `quiz-option-${index}`;
+
+        label.innerHTML = `
+          <input type="${inputType}" name="${inputName}" value="${index}">
+          <span class="option-text">${opt.text}</span>
+        `;
+        quizOptions.appendChild(label);
+      });
+
+      feedbackMsg.style.display = 'none';
+      feedbackMsg.className = 'feedback-message';
+      overlay.classList.add('active');
+    }
+
+    // Submit Quiz Answer Validation
+    quizForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (!currentCheckpoint) return;
+
+      const inputs = quizOptions.querySelectorAll('input');
+      const selectedIndices = [];
+      inputs.forEach((input, index) => {
+        if (input.checked) selectedIndices.push(index);
+      });
+
+      if (selectedIndices.length === 0) {
+        showFeedback(false, 'Please select an option before submitting.');
+        return;
+      }
+
+      let isCorrect = false;
+
+      if (currentCheckpoint.type === 'single') {
+        const selectedIndex = selectedIndices[0];
+        isCorrect = currentCheckpoint.options[selectedIndex].correct;
+      } else if (currentCheckpoint.type === 'multiple') {
+        const correctIndices = currentCheckpoint.options
+          .map((opt, i) => opt.correct ? i : null)
+          .filter(i => i !== null);
+
+        const allCorrectSelected = correctIndices.every(idx => selectedIndices.includes(idx));
+        const noExtraSelected = selectedIndices.every(idx => correctIndices.includes(idx));
+
+        isCorrect = allCorrectSelected && noExtraSelected;
+      }
+
+      if (isCorrect) {
+        showFeedback(true, 'Correct! Great job.');
+        currentCheckpoint.completed = true;
+
+        const marker = document.getElementById(`marker-cp-${currentCheckpoint.id}`);
+        if (marker) marker.classList.add('completed');
+
+        setTimeout(() => {
+          overlay.classList.remove('active');
+          video.play();
+        }, 1000);
+      } else {
+        const hint = currentCheckpoint.type === 'multiple' 
+          ? 'Incorrect. Remember to select ALL options that apply.' 
+          : 'Incorrect. Please try again.';
+        showFeedback(false, hint);
+      }
+    });
+
+    function showFeedback(isSuccess, text) {
+      feedbackMsg.className = `feedback-message ${isSuccess ? 'success' : 'error'}`;
+      feedbackMsg.innerText = text;
+      feedbackMsg.style.display = 'flex';
+    }
+
+    // Rewind 3 seconds button
+    btnRewind.addEventListener('click', () => {
+      overlay.classList.remove('active');
+      video.currentTime = Math.max(0, currentCheckpoint.time - 3);
+      video.play();
+    });
+
+    // Event Listeners
+    btnFullscreen.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleFullscreen();
+    });
+
+    if (video.readyState >= 1) {
+      initCheckpointMarkers();
+    }
+    video.addEventListener('loadedmetadata', () => {
+      initCheckpointMarkers();
+    });
+
+    // Quiz gate: playback cannot resume while a question is showing
+    video.addEventListener('play', () => {
+      if (overlay.classList.contains('active')) {
+        video.pause();
+      }
+    });
+
+    // Quiz gate: cannot skip past an unanswered checkpoint
+    video.addEventListener('seeking', () => {
+      const pending = checkpoints.find(cp => !cp.completed && video.currentTime > cp.time);
+      if (pending) {
+        video.currentTime = pending.time;
+        lastTime = pending.time;
+        triggerCheckpoint(pending);
+      } else {
+        lastTime = video.currentTime;
+      }
+    });
+
+    // Keyboard Shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (overlay.classList.contains('active')) return;
+      if (e.code === 'KeyF') {
+        toggleFullscreen();
+      }
+    });
+  </script>
+</body>
+</html>
