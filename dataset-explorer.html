@@ -62,22 +62,6 @@
         .modal-backdrop {
             background-color: rgba(15, 23, 42, 0.65);
             backdrop-filter: blur(4px);
-        }
-        .size-badge-small {
-            background-color: #dcfce7;
-            color: #15803d;
-            border: 1px solid #bbf7d0;
-        }
-        .size-badge-medium {
-            background-color: #fef9c3;
-            color: #a16207;
-            border: 1px solid #fef08a;
-        }
-        .size-badge-large {
-            background-color: #fee2e2;
-            color: #b91c1c;
-            border: 1px solid #fecaca;
-        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col font-sans antialiased text-slate-800">
@@ -163,14 +147,14 @@
                     </select>
                 </div>
 
-                <!-- Size Filter -->
+                <!-- Rows Filter -->
                 <div>
-                    <label class="block text-xs font-semibold text-slate-500 mb-1">Filter by Size</label>
-                    <select id="size-filter" onchange="handleSearchFilter()" class="w-full px-3 py-2 bg-slate-50 text-xs font-medium rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700">
-                        <option value="">All Sizes</option>
-                        <option value="Small">Small (&lt; 50 rows)</option>
-                        <option value="Medium">Medium (50 - 500 rows)</option>
-                        <option value="Large">Large (&gt; 500 rows)</option>
+                    <label class="block text-xs font-semibold text-slate-500 mb-1">Filter by Rows</label>
+                    <select id="rows-filter" onchange="handleSearchFilter()" class="w-full px-3 py-2 bg-slate-50 text-xs font-medium rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700">
+                        <option value="">All Row Counts</option>
+                        <option value="under-500">&lt; 500 rows</option>
+                        <option value="500-5000">500 – 5,000 rows</option>
+                        <option value="over-5000">&gt; 5,000 rows</option>
                     </select>
                 </div>
 
@@ -379,11 +363,6 @@
                     <div id="modal-dictionary-container" class="text-xs text-slate-700"></div>
                 </div>
 
-                <!-- Size Guide Reference -->
-                <div id="modal-size-info" class="bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-sm text-xs text-slate-500 font-medium flex items-center gap-2">
-                    <i class="fa-solid fa-info-circle text-blue-500"></i>
-                    <span>Size Guide: <strong>Small</strong> (&lt;50 rows), <strong>Medium</strong> (50-500 rows), <strong>Large</strong> (&gt;500 rows)</span>
-                </div>
 
             </div>
 
@@ -403,6 +382,33 @@
         // Primary Google Sheet export endpoint (returns CSV format)
         const CSV_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_NAME)}`;
 
+        // Baseline row counts for catalog datasets
+        const KNOWN_DATASET_ROW_COUNTS = {
+            'car - miles per gallon': 398,
+            'space objects': 1274,
+            'heights and weights': 25000,
+            'child mortality': 17066,
+            'household income - us': 32526,
+            'sea level - honolulu': 515,
+            'co₂ emissions': 26509,
+            'co2 emissions': 26509,
+            'consumer price index - us': 954,
+            'coral cover': 55125,
+            'electricity access': 7140,
+            'fuel price - us': 573,
+            'hours spent with - us': 198,
+            'internet usage': 6476,
+            'life expectancy': 21565,
+            'literacy rate': 2167,
+            'minimum wage - hawaii': 59,
+            'technology adoption - us': 299,
+            'unemployment rate - us': 942,
+            'pokemon': 801,
+            'elementary math assessment scores 2023': 898,
+            'high school science lab experiments': 150,
+            'early reading & phonics tracking': 35
+        };
+
         // Backup fallback datasets in case Google Sheets API has CORS or internet connection restrictions
         const SAMPLE_FALLBACK_DATA = [
             {
@@ -410,7 +416,7 @@
                 "Grade": "Grade 3, Grade 4, Grade 5",
                 "Subject": "Mathematics, Assessment",
                 "Standard": "CCSS.MATH.CONTENT.3.OA.A.1, CCSS.MATH.CONTENT.4.NBT.B.4, CCSS.MATH.CONTENT.5.NBT.A.1",
-                "Size": "Medium",
+                "RowCount": 898,
                 "Type": "Distribution",
                 "Description": "Comprehensive standardized math assessment results from spring 2023 for elementary students across district schools.",
                 "Questions": "What is the average proficiency rate across grades? | Are there significant disparities in multiplication accuracy between Grade 3 and Grade 4? | Which domains require curriculum revision?",
@@ -422,7 +428,7 @@
                 "Grade": "Grade 9, Grade 10, Grade 11, Grade 12",
                 "Subject": "Biology, Chemistry, Physics",
                 "Standard": "NGSS.HS-LS1-1, NGSS.HS-PS1-2",
-                "Size": "Large",
+                "RowCount": 150,
                 "Type": "Model",
                 "Description": "A dataset detailing student laboratory experiment completion times, safety compliance ratings, and lab report scores.",
                 "Questions": "How does lab duration correlate with lab report scores? | Which safety protocols are most frequently flagged during experiments?",
@@ -434,7 +440,7 @@
                 "Grade": "Kindergarten, Grade 1, Grade 2",
                 "Subject": "English Language Arts, Reading",
                 "Standard": "CCSS.ELA-LITERACY.RF.K.1, CCSS.ELA-LITERACY.RF.1.2",
-                "Size": "Small",
+                "RowCount": 35,
                 "Type": "Distribution",
                 "Description": "Fluency and phonemic awareness tracking data recorded weekly for early childhood education students.",
                 "Questions": "What percentage of Grade 1 students reach target words-per-minute by week 12? | Is phonics intervention effective across all early grades?",
@@ -573,12 +579,24 @@
                 const dictStr = getValue('Dictionary');
                 const meta = extractDictionaryMeta(dictStr);
 
+                const rawRowVal = getValue('Rows', 'Row Count', 'RowCount', 'Size', 'Count');
+                let rowCount = null;
+                const parsedNum = parseInt(String(rawRowVal).replace(/[^0-9]/g, ''), 10);
+                if (!isNaN(parsedNum) && parsedNum > 0) {
+                    rowCount = parsedNum;
+                } else {
+                    const normName = (getValue('Name') || '').toLowerCase().trim();
+                    if (KNOWN_DATASET_ROW_COUNTS[normName] !== undefined) {
+                        rowCount = KNOWN_DATASET_ROW_COUNTS[normName];
+                    }
+                }
+
                 return {
                     Name: getValue('Name') || 'Untitled Dataset',
                     Grade: getValue('Grade') || 'Unspecified',
                     Subject: getValue('Subject') || 'General',
                     Standard: getValue('Standard') || 'None Specified',
-                    Size: (getValue('Size') || 'Small').trim(),
+                    RowCount: rowCount,
                     Type: getValue('Type'),
                     Description: getValue('Description') || 'No description provided.',
                     Questions: getValue('Questions'),
@@ -655,7 +673,8 @@
             const query = document.getElementById('search-input').value.toLowerCase().trim();
             const gradeFilter = document.getElementById('grade-filter').value;
             const subjectFilter = document.getElementById('subject-filter').value;
-            const sizeFilter = document.getElementById('size-filter').value;
+            const rowsFilterEl = document.getElementById('rows-filter') || document.getElementById('size-filter');
+            const rowsFilter = rowsFilterEl ? rowsFilterEl.value : '';
             const typeFilter = document.getElementById('type-filter').value;
 
             // Toggle clear search button visibility
@@ -680,16 +699,25 @@
                 // Specific dropdown filters
                 const matchesGrade = !gradeFilter || (item.Grade && item.Grade.toLowerCase().includes(gradeFilter.toLowerCase()));
                 const matchesSubject = !subjectFilter || (item.Subject && item.Subject.toLowerCase().includes(subjectFilter.toLowerCase()));
-                const matchesSize = !sizeFilter || (item.Size && item.Size.toLowerCase() === sizeFilter.toLowerCase());
+                
+                let matchesRows = true;
+                if (rowsFilter === 'under-500') {
+                    matchesRows = typeof item.RowCount === 'number' && item.RowCount < 500;
+                } else if (rowsFilter === '500-5000') {
+                    matchesRows = typeof item.RowCount === 'number' && item.RowCount >= 500 && item.RowCount <= 5000;
+                } else if (rowsFilter === 'over-5000') {
+                    matchesRows = typeof item.RowCount === 'number' && item.RowCount > 5000;
+                }
+
                 const matchesType = !typeFilter || (item.Type && item.Type.toLowerCase() === typeFilter.toLowerCase());
 
-                return matchesSearch && matchesGrade && matchesSubject && matchesSize && matchesType;
+                return matchesSearch && matchesGrade && matchesSubject && matchesRows && matchesType;
             });
 
             // Update UI elements
             document.getElementById('results-count').textContent = filteredDatasets.length;
             
-            const isFiltered = query !== '' || gradeFilter !== '' || subjectFilter !== '' || sizeFilter !== '' || typeFilter !== '';
+            const isFiltered = query !== '' || gradeFilter !== '' || subjectFilter !== '' || rowsFilter !== '' || typeFilter !== '';
             document.getElementById('filter-active-label').classList.toggle('hidden', !isFiltered);
             document.getElementById('reset-filters-btn').classList.toggle('hidden', !isFiltered);
 
@@ -705,7 +733,8 @@
             document.getElementById('search-input').value = '';
             document.getElementById('grade-filter').value = '';
             document.getElementById('subject-filter').value = '';
-            document.getElementById('size-filter').value = '';
+            const rowsSelect = document.getElementById('rows-filter') || document.getElementById('size-filter');
+            if (rowsSelect) rowsSelect.value = '';
             document.getElementById('type-filter').value = '';
             handleSearchFilter();
         }
@@ -764,23 +793,20 @@
             });
         }
 
-        // Helper: Generate Size Badge HTML
-        function getSizeBadgeHTML(size) {
-            const cleanSize = (size || 'Small').trim();
-            let badgeClass = 'size-badge-small';
-            let tooltip = '&lt;50 rows';
+        // Helper: Generate Row Count Badge HTML
+        function getRowCountBadgeHTML(rowCount) {
+            if (rowCount === undefined || rowCount === null || rowCount === '') return '';
+            const num = typeof rowCount === 'number' ? rowCount : parseInt(String(rowCount).replace(/[^0-9]/g, ''), 10);
+            const label = !isNaN(num) && num >= 0 ? `${num.toLocaleString()} rows` : String(rowCount);
 
-            if (cleanSize.toLowerCase() === 'medium') {
-                badgeClass = 'size-badge-medium';
-                tooltip = '50-500 rows';
-            } else if (cleanSize.toLowerCase() === 'large') {
-                badgeClass = 'size-badge-large';
-                tooltip = '&gt;500 rows';
-            }
-
-            return `<span class="px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide ${badgeClass} inline-flex items-center gap-1" title="Row Count: ${tooltip}">
-                <i class="fa-solid fa-database text-[10px]"></i> ${cleanSize} (${tooltip})
+            return `<span class="px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide bg-slate-100 text-slate-700 border border-slate-200 inline-flex items-center gap-1.5" title="Dataset Size: ${label}">
+                <i class="fa-solid fa-table-list text-[10px] text-slate-500"></i> ${label}
             </span>`;
+        }
+
+        // Backward compatibility alias
+        function getSizeBadgeHTML(val) {
+            return getRowCountBadgeHTML(val);
         }
 
         // Helper: Generate Type Badge HTML
@@ -837,7 +863,7 @@
                             ` : ''}
                         </div>
                         <div class="flex flex-wrap gap-1.5 pt-1">
-                            ${getSizeBadgeHTML(dataset.Size)}
+                            ${getRowCountBadgeHTML(dataset.RowCount)}
                             ${getTypeBadgeHTML(dataset.Type)}
                         </div>
                     </div>
@@ -884,7 +910,7 @@
                         <h3 class="font-bold text-slate-900 text-sm group-hover:text-blue-600 transition">
                             ${dataset.Name}
                         </h3>
-                        ${getSizeBadgeHTML(dataset.Size)}
+                        ${getRowCountBadgeHTML(dataset.RowCount)}
                         ${getTypeBadgeHTML(dataset.Type)}
                     </div>
                     ${dataset.URL && dataset.URL !== '#' ? `
@@ -1126,12 +1152,14 @@
             const dataset = allDatasets[index];
             if (!dataset) return;
 
+            preloadDatasetCsv(dataset.URL, dataset.Name);
+
             // Title
             document.getElementById('modal-title').textContent = dataset.Name;
 
             // Badges in Header
             document.getElementById('modal-badges').innerHTML = `
-                ${getSizeBadgeHTML(dataset.Size)}
+                ${getRowCountBadgeHTML(dataset.RowCount)}
                 ${getTypeBadgeHTML(dataset.Type)}
             `;
 
@@ -1255,10 +1283,10 @@
                     if (dsType === 'model') {
                         const xVal = modelXSelect ? modelXSelect.value : '';
                         const yVal = modelYSelect ? modelYSelect.value : '';
-                        openDesmosModelVisualization(index, xVal, yVal);
+                        openDesmosModelVisualization(index, xVal, yVal, vizBtn);
                     } else {
                         const selectedField = distSelect ? distSelect.value : '';
-                        openDesmosVisualization(index, selectedField);
+                        openDesmosVisualization(index, selectedField, vizBtn);
                     }
                 };
             }
@@ -1382,178 +1410,203 @@
             window.open(codapUrl, '_blank');
         }
 
-        function openDesmosModelVisualization(index = currentModalDatasetIndex, xField = '', yField = '') {
-            const dataset = allDatasets[index] || (allDatasets.length > 0 ? allDatasets[0] : null);
-            if (!dataset) return;
+        const csvCache = new Map();
 
-            const targetUrl = getRawCsvUrl(dataset.URL, dataset.Name);
+        function preloadDatasetCsv(url, datasetName) {
+            const targetUrl = getRawCsvUrl(url, datasetName);
+            if (!targetUrl) return;
 
-            const graphWindow = window.open('', '_blank');
-            if (!graphWindow) {
-                alert('Please allow popups for this website');
+            const updateRowCountIfMissing = (count) => {
+                const normName = (datasetName || '').toLowerCase().trim();
+                const matchedDs = allDatasets.find(d => (d.Name || '').toLowerCase().trim() === normName);
+                if (matchedDs && (!matchedDs.RowCount || matchedDs.RowCount === 0)) {
+                    matchedDs.RowCount = count;
+                    const badgesEl = document.getElementById('modal-badges');
+                    if (badgesEl && currentModalDatasetIndex !== null && allDatasets[currentModalDatasetIndex] === matchedDs) {
+                        badgesEl.innerHTML = `
+                            ${getRowCountBadgeHTML(matchedDs.RowCount)}
+                            ${getTypeBadgeHTML(matchedDs.Type)}
+                        `;
+                    }
+                }
+            };
+
+            if (csvCache.has(targetUrl)) {
+                const data = csvCache.get(targetUrl);
+                if (data && data.length > 0) {
+                    updateRowCountIfMissing(data.length);
+                }
                 return;
             }
 
-            const safeXField = (xField || '').replace(/'/g, "\\'");
-            const safeYField = (yField || '').replace(/'/g, "\\'");
-            const safeDatasetName = (dataset.Name || 'Dataset').replace(/'/g, "\\'");
-            const filterRulesJSON = JSON.stringify(dataset.FilterFields || []);
-
-            graphWindow.document.write(`
-                <!DOCTYPE html>
-                <html lang="en">
-                <head>
-                    <meta charset="UTF-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <title>${safeDatasetName} - Desmos Scatterplot & Model</title>
-                    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"><\/script>
-                    <script src="https://www.desmos.com/api/v1.9/calculator.js?apiKey=dcb31709b452b1cf9dc26972add0fda6"><\/script>
-                    <style>
-                        html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #0f172a; font-family: system-ui, -apple-system, sans-serif; }
-                        #calculator { width: 100%; height: 100%; }
-                        #status-bar { position: absolute; top: 12px; left: 55px; z-index: 10; background: rgba(15, 23, 42, 0.85); color: #f8fafc; padding: 6px 14px; border-radius: 8px; font-size: 12px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(4px); pointer-events: none; }
-                    </style>
-                </head>
-                <body>
-                    <div id="status-bar">
-                        <strong>${safeDatasetName}</strong> &bull; <span id="col-info">Loading CSV data for Scatterplot...</span>
-                    </div>
-                    <div id="calculator"></div>
-                    <script>
-                        const elt = document.getElementById('calculator');
-                        const calculator = Desmos.GraphingCalculator(elt, {
-                            expressions: true,
-                            keypad: true,
-                            settingsMenu: true
-                        });
-
-                        const filterRules = ${filterRulesJSON};
-
-                        Papa.parse('${targetUrl}', {
-                            download: true,
-                            header: true,
-                            skipEmptyLines: true,
-                            complete: function(results) {
-                                renderScatterplot(results.data, '${safeXField}', '${safeYField}', filterRules);
-                            },
-                            error: function(err) {
-                                console.error('Error fetching CSV:', err);
-                            }
-                        });
-
-                        function applyFilters(rows, filters) {
-                            if (!filters || filters.length === 0 || !rows || rows.length === 0) return rows;
-                            const keys = Object.keys(rows[0]);
-                            return rows.filter(row => {
-                                return filters.every(rule => {
-                                    if (!rule.field || !rule.defaultValue) return true;
-                                    const normField = rule.field.trim().toLowerCase();
-                                    const matchedCol = keys.find(k => k.trim().toLowerCase() === normField) ||
-                                                       keys.find(k => k.trim().toLowerCase().includes(normField));
-                                    if (!matchedCol) return true;
-                                    const targetVal = rule.defaultValue.trim().toLowerCase();
-                                    const rowVal = String(row[matchedCol] || '').trim().toLowerCase();
-                                    return rowVal === targetVal;
-                                });
-                            });
-                        }
-
-                        function renderScatterplot(rawRows, xName, yName, filters) {
-                            const rows = applyFilters(rawRows, filters);
-                            if (!rows || rows.length === 0) return;
-                            const sampleRow = rows[0];
-                            const keys = Object.keys(sampleRow);
-
-                            let matchedX = null;
-                            let matchedY = null;
-
-                            if (xName && xName.trim() !== '') {
-                                const normX = xName.trim().toLowerCase();
-                                matchedX = keys.find(k => k.trim().toLowerCase() === normX) ||
-                                           keys.find(k => k.trim().toLowerCase().includes(normX));
-                            }
-                            if (yName && yName.trim() !== '') {
-                                const normY = yName.trim().toLowerCase();
-                                matchedY = keys.find(k => k.trim().toLowerCase() === normY) ||
-                                           keys.find(k => k.trim().toLowerCase().includes(normY));
-                            }
-
-                            const numericCols = keys.filter(k => {
-                                const val = parseFloat(sampleRow[k]);
-                                return !isNaN(val);
-                            });
-
-                            if (!matchedX) matchedX = numericCols[0] || keys[0];
-                            if (!matchedY) matchedY = numericCols[1] || numericCols[0] || keys[1] || keys[0];
-
-                            const xVals = [];
-                            const yVals = [];
-
-                            for (let i = 0; i < rows.length && xVals.length < 100; i++) {
-                                const rawX = rows[i][matchedX];
-                                const rawY = rows[i][matchedY];
-                                if (rawX !== undefined && rawY !== undefined && rawX !== null && rawY !== null) {
-                                    const nx = parseFloat(String(rawX).trim());
-                                    const ny = parseFloat(String(rawY).trim());
-                                    if (!isNaN(nx) && !isNaN(ny)) {
-                                        xVals.push(nx);
-                                        yVals.push(ny);
-                                    }
-                                }
-                            }
-
-                            if (xVals.length === 0) return;
-
-                            const N = xVals.length;
-                            let filterSummary = '';
-                            if (filters && filters.length > 0) {
-                                filterSummary = ' (Filter: ' + filters.map(f => f.field + '=' + f.defaultValue).join(', ') + ')';
-                            }
-
-                            const colInfoEl = document.getElementById('col-info');
-                            if (colInfoEl) {
-                                colInfoEl.textContent = 'Scatterplot: X = ' + matchedX + ' | Y = ' + matchedY + ' | Points: ' + N + filterSummary;
-                            }
-
-                            // 1. Define x1 and y1 lists in Desmos
-                            calculator.setExpression({ id: 'x_list', latex: 'x_1=\\\\left[' + xVals.join(',') + '\\\\right]', color: Desmos.Colors.BLUE });
-                            calculator.setExpression({ id: 'y_list', latex: 'y_1=\\\\left[' + yVals.join(',') + '\\\\right]', color: Desmos.Colors.BLUE });
-
-                            // 2. Plot scatterplot points (x1, y1)
-                            calculator.setExpression({ id: 'pts', latex: '(x_1,y_1)', color: Desmos.Colors.BLUE, label: matchedX + ' vs ' + matchedY });
-
-                            // 3. Add Linear Regression model: y1 ~ m1 * x1 + b1
-                            calculator.setExpression({ id: 'regr', latex: 'y_1 \\\\sim m_1 x_1 + b_1', color: Desmos.Colors.RED, lineWidth: 3 });
-
-                            // Calculate viewport bounds
-                            const minX = Math.min(...xVals);
-                            const maxX = Math.max(...xVals);
-                            const minY = Math.min(...yVals);
-                            const maxY = Math.max(...yVals);
-
-                            const rangeX = maxX - minX || 10;
-                            const rangeY = maxY - minY || 10;
-
-                            calculator.setMathBounds({
-                                left: minX - rangeX * 0.15,
-                                right: maxX + rangeX * 0.15,
-                                bottom: minY - rangeY * 0.15,
-                                top: maxY + rangeY * 0.15
-                            });
-                        }
-                    <\/script>
-                </body>
-                </html>
-            `);
-
-            graphWindow.document.close();
+            Papa.parse(targetUrl, {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    if (results && results.data && results.data.length > 0) {
+                        csvCache.set(targetUrl, results.data);
+                        updateRowCountIfMissing(results.data.length);
+                    }
+                }
+            });
         }
 
-        function openDesmosVisualization(index = currentModalDatasetIndex, targetField = '') {
+        function copyStringToClipboard(text) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                return navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+            } else {
+                fallbackCopy(text);
+                return Promise.resolve();
+            }
+        }
+
+        function fallbackCopy(text) {
+            const temp = document.createElement('textarea');
+            temp.value = text;
+            temp.style.position = 'fixed';
+            temp.style.left = '-9999px';
+            temp.style.top = '-9999px';
+            document.body.appendChild(temp);
+            temp.focus();
+            temp.select();
+            try {
+                document.execCommand('copy');
+            } catch (e) {
+                console.error('execCommand copy error:', e);
+            }
+            document.body.removeChild(temp);
+        }
+
+        function flashButtonFeedback(btnEl, message, isError = false) {
+            if (!btnEl) return;
+            const originalHTML = btnEl.getAttribute('data-orig-html') || '<i class="fa-solid fa-chart-column"></i> <span>Desmos</span>';
+            if (!btnEl.getAttribute('data-orig-html')) {
+                btnEl.setAttribute('data-orig-html', originalHTML);
+            }
+
+            if (isError) {
+                btnEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-amber-200"></i> <span>${message}</span>`;
+                btnEl.classList.remove('bg-emerald-600', 'hover:bg-emerald-500', 'bg-blue-600', 'hover:bg-blue-500');
+                btnEl.classList.add('bg-amber-600');
+            } else {
+                btnEl.innerHTML = `<i class="fa-solid fa-clipboard-check text-white"></i> <span>${message}</span>`;
+                btnEl.classList.remove('bg-emerald-600', 'hover:bg-emerald-500', 'bg-amber-600');
+                btnEl.classList.add('bg-blue-600', 'hover:bg-blue-500');
+            }
+
+            setTimeout(() => {
+                btnEl.innerHTML = originalHTML;
+                btnEl.classList.remove('bg-blue-600', 'hover:bg-blue-500', 'bg-amber-600');
+                btnEl.classList.add('bg-emerald-600', 'hover:bg-emerald-500');
+                btnEl.disabled = false;
+            }, 4000);
+        }
+
+        function openDesmosModelVisualization(index = currentModalDatasetIndex, xField = '', yField = '', btnEl = null) {
             const dataset = allDatasets[index] || (allDatasets.length > 0 ? allDatasets[0] : null);
             if (!dataset) return;
 
-            // If targetField is not explicitly passed, check dropdown element
+            if (!btnEl) btnEl = document.getElementById('modal-visualize-btn');
+            const targetUrl = getRawCsvUrl(dataset.URL, dataset.Name);
+            const filterRules = dataset.FilterFields || [];
+
+            const processRowsAndCopy = (rawRows) => {
+                const rows = applyFiltersMain(rawRows, filterRules);
+                if (!rows || rows.length === 0) {
+                    flashButtonFeedback(btnEl, 'No data matching filter', true);
+                    return;
+                }
+
+                const sampleRow = rows[0];
+                const keys = Object.keys(sampleRow);
+                let matchedX = null;
+                let matchedY = null;
+
+                if (xField && xField.trim() !== '') {
+                    const normX = xField.trim().toLowerCase();
+                    matchedX = keys.find(k => k.trim().toLowerCase() === normX) ||
+                               keys.find(k => k.trim().toLowerCase().includes(normX));
+                }
+                if (yField && yField.trim() !== '') {
+                    const normY = yField.trim().toLowerCase();
+                    matchedY = keys.find(k => k.trim().toLowerCase() === normY) ||
+                               keys.find(k => k.trim().toLowerCase().includes(normY));
+                }
+
+                const numericCols = keys.filter(k => {
+                    const val = parseFloat(sampleRow[k]);
+                    return !isNaN(val);
+                });
+
+                if (!matchedX) matchedX = numericCols[0] || keys[0];
+                if (!matchedY) matchedY = numericCols[1] || numericCols[0] || keys[1] || keys[0];
+
+                const tsvLines = [];
+                for (let i = 0; i < rows.length; i++) {
+                    const rawX = rows[i][matchedX];
+                    const rawY = rows[i][matchedY];
+                    if (rawX !== undefined && rawY !== undefined && rawX !== null && rawY !== null) {
+                        const nx = parseFloat(String(rawX).trim());
+                        const ny = parseFloat(String(rawY).trim());
+                        if (!isNaN(nx) && !isNaN(ny)) {
+                            tsvLines.push(nx + '\t' + ny);
+                        }
+                    }
+                }
+
+                if (tsvLines.length === 0) {
+                    flashButtonFeedback(btnEl, 'No numbers found in columns', true);
+                    return;
+                }
+
+                const tsvString = tsvLines.join('\n');
+
+                // 1. Copy table string to clipboard
+                copyStringToClipboard(tsvString);
+
+                // 2. Open Desmos Graphing Calculator in a new tab
+                window.open('https://www.desmos.com/calculator', '_blank');
+
+                // 3. Provide feedback on the button
+                flashButtonFeedback(btnEl, `Copied Table (${tsvLines.length} rows)! Paste in Desmos`);
+            };
+
+            if (csvCache.has(targetUrl)) {
+                processRowsAndCopy(csvCache.get(targetUrl));
+                return;
+            }
+
+            if (btnEl) {
+                btnEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Preparing Table...</span>';
+                btnEl.disabled = true;
+            }
+
+            Papa.parse(targetUrl, {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    if (results && results.data && results.data.length > 0) {
+                        csvCache.set(targetUrl, results.data);
+                        processRowsAndCopy(results.data);
+                    } else {
+                        flashButtonFeedback(btnEl, 'Error: Empty CSV', true);
+                    }
+                },
+                error: function(err) {
+                    console.error('Error fetching CSV for Desmos copy:', err);
+                    flashButtonFeedback(btnEl, 'Error fetching CSV', true);
+                }
+            });
+        }
+
+        function openDesmosVisualization(index = currentModalDatasetIndex, targetField = '', btnEl = null) {
+            const dataset = allDatasets[index] || (allDatasets.length > 0 ? allDatasets[0] : null);
+            if (!dataset) return;
+
+            if (!btnEl) btnEl = document.getElementById('modal-visualize-btn');
+
             if (!targetField) {
                 const selectEl = document.getElementById('modal-queryable-field-select');
                 if (selectEl && selectEl.value) {
@@ -1562,165 +1615,84 @@
             }
 
             const targetUrl = getRawCsvUrl(dataset.URL, dataset.Name);
+            const filterRules = dataset.FilterFields || [];
 
-            // 1. Open a new window / tab
-            const graphWindow = window.open('', '_blank');
-            if (!graphWindow) {
-                alert('Please allow popups for this website');
+            const processRowsAndCopy = (rawRows) => {
+                const rows = applyFiltersMain(rawRows, filterRules);
+                if (!rows || rows.length === 0) {
+                    flashButtonFeedback(btnEl, 'No data matching filter', true);
+                    return;
+                }
+
+                const sampleRow = rows[0];
+                const keys = Object.keys(sampleRow);
+                let matchedCol = null;
+
+                if (targetField && targetField.trim() !== '') {
+                    const normTarget = targetField.trim().toLowerCase();
+                    matchedCol = keys.find(k => k.trim().toLowerCase() === normTarget) ||
+                                 keys.find(k => k.trim().toLowerCase().includes(normTarget));
+                }
+                if (!matchedCol) {
+                    matchedCol = keys.find(k => {
+                        const val = parseFloat(sampleRow[k]);
+                        return !isNaN(val) && val > 0;
+                    }) || keys[0];
+                }
+
+                const values = [];
+                for (let i = 0; i < rows.length; i++) {
+                    const rawVal = rows[i][matchedCol];
+                    if (rawVal !== undefined && rawVal !== null) {
+                        const num = parseFloat(String(rawVal).trim());
+                        if (!isNaN(num)) values.push(num);
+                    }
+                }
+
+                if (values.length === 0) {
+                    flashButtonFeedback(btnEl, 'No numbers found', true);
+                    return;
+                }
+
+                const tsvString = values.join('\n');
+
+                // 1. Copy data to clipboard
+                copyStringToClipboard(tsvString);
+
+                // 2. Open Desmos Graphing Calculator in a new tab
+                window.open('https://www.desmos.com/calculator', '_blank');
+
+                // 3. Provide feedback on the button
+                flashButtonFeedback(btnEl, `Copied Data (${values.length} rows)! Paste in Desmos`);
+            };
+
+            if (csvCache.has(targetUrl)) {
+                processRowsAndCopy(csvCache.get(targetUrl));
                 return;
             }
 
-            const safeTargetField = (targetField || '').replace(/'/g, "\\'");
-            const safeDatasetName = (dataset.Name || 'Dataset').replace(/'/g, "\\'");
-            const filterRulesJSON = JSON.stringify(dataset.FilterFields || []);
+            if (btnEl) {
+                btnEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Preparing Data...</span>';
+                btnEl.disabled = true;
+            }
 
-            // 2. Write HTML document structure with the Desmos API script
-            graphWindow.document.write(`
-                <!DOCTYPE html>
-                <html lang="en">
-                <head>
-                    <meta charset="UTF-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <title>${safeDatasetName} - Desmos Graph</title>
-                    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"><\/script>
-                    <script src="https://www.desmos.com/api/v1.9/calculator.js?apiKey=dcb31709b452b1cf9dc26972add0fda6"><\/script>
-                    <style>
-                        html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #0f172a; font-family: system-ui, -apple-system, sans-serif; }
-                        #calculator { width: 100%; height: 100%; }
-                        #status-bar { position: absolute; top: 12px; left: 55px; z-index: 10; background: rgba(15, 23, 42, 0.85); color: #f8fafc; padding: 6px 14px; border-radius: 8px; font-size: 12px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(4px); pointer-events: none; }
-                    </style>
-                </head>
-                <body>
-                    <div id="status-bar">
-                        <strong>${safeDatasetName}</strong> &bull; <span id="col-info">Loading CSV data...</span>
-                    </div>
-                    <div id="calculator"></div>
-                    <script>
-                        // 3. Initialize the calculator
-                        const elt = document.getElementById('calculator');
-                        const calculator = Desmos.GraphingCalculator(elt, {
-                            expressions: true,
-                            keypad: true,
-                            settingsMenu: true
-                        });
-
-                        const filterRules = ${filterRulesJSON};
-
-                        // Fetch dataset CSV from GitHub URL and render histogram
-                        Papa.parse('${targetUrl}', {
-                            download: true,
-                            header: true,
-                            skipEmptyLines: true,
-                            complete: function(results) {
-                                renderHistogram(results.data, '${safeTargetField}', filterRules);
-                            },
-                            error: function() {
-                                Papa.parse('https://raw.githubusercontent.com/daniel-lim-ocid/datasets/main/galton_parent_child_heights.csv', {
-                                    download: true,
-                                    header: true,
-                                    skipEmptyLines: true,
-                                    complete: function(results) {
-                                        renderHistogram(results.data, '${safeTargetField}', filterRules);
-                                    }
-                                });
-                            }
-                        });
-
-                        function applyFilters(rows, filters) {
-                            if (!filters || filters.length === 0 || !rows || rows.length === 0) return rows;
-                            const keys = Object.keys(rows[0]);
-                            return rows.filter(row => {
-                                return filters.every(rule => {
-                                    if (!rule.field || !rule.defaultValue) return true;
-                                    const normField = rule.field.trim().toLowerCase();
-                                    const matchedCol = keys.find(k => k.trim().toLowerCase() === normField) ||
-                                                       keys.find(k => k.trim().toLowerCase().includes(normField));
-                                    if (!matchedCol) return true;
-                                    const targetVal = rule.defaultValue.trim().toLowerCase();
-                                    const rowVal = String(row[matchedCol] || '').trim().toLowerCase();
-                                    return rowVal === targetVal;
-                                });
-                            });
-                        }
-
-                        function renderHistogram(rawRows, targetField, filters) {
-                            const rows = applyFilters(rawRows, filters);
-                            if (!rows || rows.length === 0) return;
-                            const sampleRow = rows[0];
-                            const keys = Object.keys(sampleRow);
-                            
-                            let matchedCol = null;
-                            if (targetField && targetField.trim() !== '') {
-                                const normTarget = targetField.trim().toLowerCase();
-                                matchedCol = keys.find(k => k.trim().toLowerCase() === normTarget) ||
-                                             keys.find(k => k.trim().toLowerCase().includes(normTarget));
-                            }
-                            if (!matchedCol) {
-                                matchedCol = keys.find(k => k.trim().toLowerCase() === 'height') ||
-                                             keys.find(k => k.trim().toLowerCase().includes('height')) ||
-                                             keys.find(k => k.trim().toLowerCase() === 'childheight');
-                            }
-                            if (!matchedCol) {
-                                matchedCol = keys.find(k => {
-                                    const val = parseFloat(sampleRow[k]);
-                                    return !isNaN(val) && val > 0;
-                                }) || keys[0];
-                            }
-
-                            // Extract up to 100 numeric records
-                            const values = [];
-                            for (let i = 0; i < rows.length && values.length < 100; i++) {
-                                const rawVal = rows[i][matchedCol];
-                                if (rawVal !== undefined && rawVal !== null) {
-                                    const num = parseFloat(String(rawVal).trim());
-                                    if (!isNaN(num)) values.push(num);
-                                }
-                            }
-
-                            if (values.length === 0) return;
-
-                            const N = values.length;
-                            const mean = values.reduce((a, b) => a + b, 0) / N;
-                            const variance = values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / (N > 1 ? N - 1 : 1);
-                            const stdev = Math.sqrt(variance);
-                            const min = Math.min(...values);
-                            const max = Math.max(...values);
-                            const range = max - min || 1;
-
-                            let binWidth = Math.max(0.5, Math.round((range / 12) * 2) / 2);
-                            if (range <= 10) binWidth = 0.5;
-
-                            let filterSummary = '';
-                            if (filters && filters.length > 0) {
-                                filterSummary = ' (Filter: ' + filters.map(f => f.field + '=' + f.defaultValue).join(', ') + ')';
-                            }
-
-                            const colInfoEl = document.getElementById('col-info');
-                            if (colInfoEl) {
-                                colInfoEl.textContent = 'Histogram & Boxplot: Column = ' + matchedCol + ' | Rows = ' + N + ' | Mean = ' + mean.toFixed(2) + ' | StdDev = ' + stdev.toFixed(2) + filterSummary;
-                            }
-
-                            // 4. Add pre-populated formulas and parameters (Histogram + Boxplot)
-                            calculator.setExpression({ id: 'data_l', latex: 'L=\\\\left[' + values.join(',') + '\\\\right]', color: Desmos.Colors.BLUE });
-                            calculator.setExpression({ id: 'bin_w', latex: 'w=' + binWidth });
-                            calculator.setExpression({ id: 'hist', latex: '\\\\operatorname{histogram}\\\\left(L,w\\\\right)', color: Desmos.Colors.BLUE });
-                            calculator.setExpression({ id: 'box', latex: '\\\\operatorname{boxplot}\\\\left(L\\\\right)', color: Desmos.Colors.PURPLE });
-
-                            const peakY = (N * binWidth) / (stdev * Math.sqrt(2 * Math.PI));
-                            calculator.setMathBounds({
-                                left: Math.max(0, min - 3 * stdev),
-                                right: max + 3 * stdev,
-                                bottom: -0.5,
-                                top: Math.max(peakY * 1.35, 10)
-                            });
-                        }
-                    <\/script>
-                </body>
-                </html>
-            `);
-            
-            // 5. Close the document stream
-            graphWindow.document.close();
+            Papa.parse(targetUrl, {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    if (results && results.data && results.data.length > 0) {
+                        csvCache.set(targetUrl, results.data);
+                        processRowsAndCopy(results.data);
+                    } else {
+                        flashButtonFeedback(btnEl, 'Error: Empty CSV', true);
+                    }
+                },
+                error: function(err) {
+                    console.error('Error fetching CSV for Desmos copy:', err);
+                    flashButtonFeedback(btnEl, 'Error fetching CSV', true);
+                }
+            });
         }
     </script>
 </body>
