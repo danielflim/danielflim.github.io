@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desmos Slow Reveal Graph</title>
+    <!-- Desmos API -->
+    <script src="https://www.desmos.com/api/v1.9/calculator.js?apiKey=dcb31709b452b1cf9dc26972add0fda6"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f8fafc;
+            display: flex;
+            flex-direction: column;
+        }
+        #top-bar {
+            height: 64px;
+            background: #ffffff;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            position: relative;
+            z-index: 20;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+        #title-display {
+            font-size: 20px;
+            font-weight: 700;
+            color: #0f172a;
+            opacity: 0;
+            transform: translateY(-4px);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+            pointer-events: none;
+            letter-spacing: -0.01em;
+            max-width: 65%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        #title-display.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .btn-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .control-btn {
+            background-color: #2563eb;
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(37, 99, 235, 0.25);
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            user-select: none;
+        }
+        .control-btn:hover {
+            background-color: #1d4ed8;
+            box-shadow: 0 4px 6px rgba(37, 99, 235, 0.35);
+            transform: translateY(-1px);
+        }
+        .control-btn:active {
+            transform: translateY(0);
+        }
+        .control-btn.secondary {
+            background-color: #f1f5f9;
+            color: #475569;
+            border: 1px solid #cbd5e1;
+            box-shadow: none;
+        }
+        .control-btn.secondary:hover {
+            background-color: #e2e8f0;
+            color: #1e293b;
+        }
+        .control-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+        #stage-indicator {
+            font-size: 13px;
+            color: #475569;
+            font-weight: 600;
+            background: #f1f5f9;
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+        #main-area {
+            flex: 1;
+            display: flex;
+            flex-direction: row;
+            position: relative;
+            overflow: hidden;
+            min-height: 0;
+        }
+        #y-axis-gutter {
+            width: 100px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #ffffff;
+            border-right: 1px solid #f1f5f9;
+            position: relative;
+            z-index: 10;
+            flex-shrink: 0;
+        }
+        #calculator-wrapper {
+            flex: 1;
+            height: 100%;
+            position: relative;
+            min-width: 0;
+        }
+        #calculator {
+            width: 100%;
+            height: 100%;
+        }
+        #y-ticks-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 15;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        #y-ticks-overlay.visible {
+            opacity: 1;
+        }
+        .y-tick-label {
+            position: absolute;
+            width: 50px;
+            text-align: right;
+            font-size: 14px;
+            font-weight: 700;
+            color: #1e293b;
+            line-height: 1;
+            user-select: none;
+            letter-spacing: -0.02em;
+        }
+        #x-axis-gutter {
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #ffffff;
+            border-top: 1px solid #f1f5f9;
+            position: relative;
+            z-index: 10;
+            flex-shrink: 0;
+            padding-left: 100px; /* Offset to center relative to calculator area */
+        }
+        /* Custom styled labels with large fonts */
+        .axis-label-overlay {
+            font-weight: 700;
+            color: #1e293b;
+            opacity: 0;
+            transition: opacity 0.4s ease, transform 0.4s ease;
+            pointer-events: none;
+            user-select: none;
+            letter-spacing: -0.01em;
+        }
+        .axis-label-overlay.visible {
+            opacity: 1;
+        }
+        #x-label-overlay {
+            font-size: 22px;
+            text-align: center;
+        }
+        #y-label-overlay {
+            font-size: 20px;
+            white-space: nowrap;
+            transform: rotate(-90deg);
+            transform-origin: center center;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="top-bar">
+        <div id="title-display">Dataset Graph</div>
+        <div class="btn-group">
+            <span id="stage-indicator">Stage 0: Blank Canvas</span>
+            <button id="prev-btn" class="control-btn secondary" onclick="prevStage()" title="Previous Stage (Left Arrow)" disabled>
+                <i class="fa-solid fa-arrow-left"></i> Prev
+            </button>
+            <button id="next-btn" class="control-btn" onclick="nextStage()" title="Next Stage (Right Arrow / Space)">
+                <span>Next</span> <i class="fa-solid fa-arrow-right"></i>
+            </button>
+            <button id="reset-btn" class="control-btn secondary" onclick="resetStage()" title="Reset to Start">
+                <i class="fa-solid fa-rotate-left"></i>
+            </button>
+        </div>
+    </div>
+
+    <div id="main-area">
+        <div id="y-axis-gutter">
+            <div id="y-label-overlay" class="axis-label-overlay">Y-Axis</div>
+        </div>
+        <div id="calculator-wrapper">
+            <div id="calculator"></div>
+            <div id="y-ticks-overlay"></div>
+        </div>
+    </div>
+
+    <div id="x-axis-gutter">
+        <div id="x-label-overlay" class="axis-label-overlay">X-Axis</div>
+    </div>
+
+    <script>
+        // Load configuration passed from parent window or localStorage
+        function loadConfig() {
+            let config = null;
+            if (window.opener && window.opener.slowRevealConfig) {
+                config = window.opener.slowRevealConfig;
+            } else {
+                try {
+                    const raw = localStorage.getItem('desmos_slow_reveal_config');
+                    if (raw) config = JSON.parse(raw);
+                } catch (e) {
+                    console.warn('Could not parse localStorage config:', e);
+                }
+            }
+
+            // Fallback default sample data if opened independently
+            if (!config || !config.points || config.points.length === 0) {
+                config = {
+                    title: 'Child Mortality in China (1950–2024)',
+                    xLabel: 'Year',
+                    yLabel: 'Child Mortality Rate (per 1,000 live births)',
+                    xMin: 1950,
+                    xMax: 2024,
+                    yMin: 0,
+                    yMax: 35,
+                    points: [
+                        [1950, 31.71], [1955, 29.1],  [1958, 23.33], [1959, 26.85], [1960, 30.9],
+                        [1961, 26.19], [1962, 16.78], [1965, 11.54], [1968, 13.23], [1969, 11.8],
+                        [1970, 11.21], [1971, 10.63], [1972, 10.08], [1973, 9.52],  [1974, 8.97],
+                        [1975, 8.43],  [1976, 7.91],  [1977, 7.42],  [1978, 6.98],  [1979, 6.59],
+                        [1980, 6.26],  [1981, 5.99],  [1982, 5.77],  [1983, 5.61],  [1984, 5.49],
+                        [1985, 5.42],  [1986, 5.39],  [1987, 5.38],  [1988, 5.39],  [1989, 5.38],
+                        [1990, 5.36],  [1991, 5.3],   [1992, 5.21],  [1993, 5.08],  [1994, 4.92],
+                        [1995, 4.74],  [1996, 4.55],  [1997, 4.35],  [1998, 4.14],  [1999, 3.91],
+                        [2000, 3.66],  [2001, 3.41],  [2002, 3.14],  [2003, 2.88],  [2004, 2.63],
+                        [2005, 2.4],   [2006, 2.19],  [2007, 2.01],  [2008, 1.85],  [2009, 1.71],
+                        [2010, 1.57],  [2011, 1.46],  [2012, 1.35],  [2013, 1.25],  [2014, 1.16],
+                        [2015, 1.07],  [2016, 1],     [2017, 0.93],  [2018, 0.86],  [2019, 0.8],
+                        [2020, 0.75],  [2021, 0.7],   [2022, 0.66],  [2023, 0.61],  [2024, 0.57]
+                    ]
+                };
+            }
+            return config;
+        }
+
+        // Helper: Calculate mathematically nice steps and tick marks
+        function calculateNiceTicks(min, max, maxTicks = 8) {
+            const span = max - min;
+            if (span <= 0) return { step: 1, ticks: [min] };
+
+            const rawStep = span / maxTicks;
+            const power = Math.floor(Math.log10(rawStep));
+            const fraction = rawStep / Math.pow(10, power);
+
+            let niceFraction;
+            if (fraction < 1.5) niceFraction = 1;
+            else if (fraction < 3) niceFraction = 2;
+            else if (fraction < 7) niceFraction = 5;
+            else niceFraction = 10;
+
+            const step = niceFraction * Math.pow(10, power);
+            const startTick = Math.ceil(min / step) * step;
+            const ticks = [];
+            for (let t = startTick; t <= max + (step * 0.001); t += step) {
+                const roundedTick = Math.round(t / (step * 0.0001)) * (step * 0.0001);
+                ticks.push(parseFloat(roundedTick.toPrecision(10)));
+            }
+            return { step, ticks };
+        }
+
+        const config = loadConfig();
+
+        // Populate HTML text elements
+        document.getElementById('title-display').textContent = config.title || 'Dataset Graph';
+        document.getElementById('x-label-overlay').textContent = config.xLabel || 'X-Axis';
+        document.getElementById('y-label-overlay').textContent = config.yLabel || 'Y-Axis';
+
+        // Extract points and calculate bounds
+        const sortedPoints = [...config.points].sort((a, b) => a[0] - b[0]);
+        const xVals = sortedPoints.map(pt => pt[0]);
+        const yVals = sortedPoints.map(pt => pt[1]);
+
+        const rawXMin = (typeof config.xMin === 'number' && !isNaN(config.xMin)) ? config.xMin : Math.min(...xVals);
+        const rawXMax = (typeof config.xMax === 'number' && !isNaN(config.xMax)) ? config.xMax : Math.max(...xVals);
+        const rawYMin = (typeof config.yMin === 'number' && !isNaN(config.yMin)) ? config.yMin : Math.min(...yVals);
+        const rawYMax = (typeof config.yMax === 'number' && !isNaN(config.yMax)) ? config.yMax : Math.max(...yVals);
+
+        const xSpan = (rawXMax - rawXMin) || 1;
+        const ySpan = (rawYMax - rawYMin) || 1;
+
+        // Calculate ticks
+        const xTickData = calculateNiceTicks(rawXMin, rawXMax, 8);
+        const yTickData = calculateNiceTicks(rawYMin, rawYMax, 7);
+
+        const xStep = xTickData.step;
+        const xTicks = xTickData.ticks;
+        const yStep = yTickData.step;
+        const yTicks = yTickData.ticks;
+
+        // Viewport bounds with generous padding
+        const padLeft = xSpan * 0.12;   // Extra left space for Y-axis tick values
+        const padRight = xSpan * 0.05;
+        const padBottom = ySpan * 0.15; // Extra bottom space for X-axis numbers
+        const padTop = ySpan * 0.08;
+
+        const defaultBounds = {
+            left: rawXMin - padLeft,
+            right: rawXMax + padRight,
+            bottom: rawYMin - padBottom,
+            top: rawYMax + padTop
+        };
+
+        const yAxisX = rawXMin - (xSpan * 0.02);
+
+        // Initialize Desmos Calculator
+        const elt = document.getElementById('calculator');
+        const calculator = Desmos.GraphingCalculator(elt, {
+            expressions: false,
+            keypad: false,
+            settingsMenu: false,
+            zoomButtons: false,
+            lockViewport: true
+        });
+
+        calculator.setMathBounds(defaultBounds);
+
+        // Reveal Stages:
+        // Stage 0: Blank canvas (no points, no axes)
+        // Stage 1: Data points revealed
+        // Stage 2: X-Axis revealed with vertical lines coinciding with tick marks
+        // Stage 3: Y-Axis revealed with horizontal lines coinciding with tick marks
+        // Stage 4: X-Axis label revealed
+        // Stage 5: Y-Axis label revealed
+        // Stage 6: Title revealed
+        let currentStage = 0;
+
+        const stageDescriptions = [
+            'Stage 0: Blank Canvas',
+            'Stage 1: Data Points Revealed',
+            'Stage 2: X-Axis & Vertical Gridlines',
+            'Stage 3: Y-Axis & Horizontal Gridlines',
+            'Stage 4: X-Axis Label Revealed',
+            'Stage 5: Y-Axis Label Revealed',
+            'Stage 6: Title Revealed'
+        ];
+
+        function updateGraphStage(stage) {
+            const hasData = stage >= 1;
+            const hasXAxis = stage >= 2;
+            const hasYAxis = stage >= 3;
+            const hasXLabel = stage >= 4;
+            const hasYLabel = stage >= 5;
+            const hasTitle = stage >= 6;
+
+            // 1. Data Points
+            if (hasData) {
+                calculator.setExpression({
+                    id: 'x_list',
+                    latex: 'x_1=\\left[' + xVals.join(',') + '\\right]'
+                });
+                calculator.setExpression({
+                    id: 'y_list',
+                    latex: 'y_1=\\left[' + yVals.join(',') + '\\right]'
+                });
+                calculator.setExpression({
+                    id: 'pts',
+                    latex: '(x_1, y_1)',
+                    color: '#2563eb',
+                    pointSize: 9,
+                    lines: true,
+                    lineWidth: 2.5
+                });
+            } else {
+                calculator.removeExpression({ id: 'x_list' });
+                calculator.removeExpression({ id: 'y_list' });
+                calculator.removeExpression({ id: 'pts' });
+            }
+
+            // 2. Desmos graph settings for X-axis
+            try {
+                const state = calculator.getState();
+                if (state && state.graph) {
+                    state.graph.showGrid = false;
+                    state.graph.showXAxis = hasXAxis;
+                    state.graph.xAxisNumbers = hasXAxis;
+                    state.graph.xAxisStep = xStep;
+                    state.graph.xAxisLabel = '';
+
+                    state.graph.showYAxis = false;
+                    state.graph.yAxisNumbers = false;
+                    state.graph.yAxisStep = yStep;
+                    state.graph.yAxisLabel = '';
+
+                    calculator.setState(state, { allowUndo: false });
+                }
+            } catch (err) {
+                console.warn('Graph state update error:', err);
+            }
+
+            calculator.setMathBounds(defaultBounds);
+
+            // 3. Vertical lines coinciding with X-axis tick marks
+            if (hasXAxis && xTicks.length > 0) {
+                calculator.setExpression({
+                    id: 'v_ticks_list',
+                    latex: 'T_{x} = [' + xTicks.join(',') + ']'
+                });
+                calculator.setExpression({
+                    id: 'v_lines',
+                    latex: 'x = T_{x} \\left\\{' + rawYMin + ' \\le y \\le ' + rawYMax + '\\right\\}',
+                    color: '#94a3b8',
+                    lineStyle: (window.Desmos && Desmos.Styles && Desmos.Styles.DASHED) ? Desmos.Styles.DASHED : 'DASHED',
+                    lineWidth: 1.5
+                });
+            } else {
+                calculator.removeExpression({ id: 'v_ticks_list' });
+                calculator.removeExpression({ id: 'v_lines' });
+            }
+
+            // 4. Vertical Y-axis line, tick marks, and horizontal lines coinciding with tick marks
+            if (hasYAxis && yTicks.length > 0) {
+                // Vertical Y-axis line
+                calculator.setExpression({
+                    id: 'y_axis_line',
+                    latex: 'x = ' + yAxisX + ' \\left\\{' + rawYMin + ' \\le y \\le ' + rawYMax + '\\right\\}',
+                    color: '#334155',
+                    lineWidth: 2
+                });
+                // Small tick marks extending to the left of the axis
+                calculator.setExpression({
+                    id: 'h_ticks_list',
+                    latex: 'T_{y} = [' + yTicks.join(',') + ']'
+                });
+                const tickDashLeft = yAxisX - (xSpan * 0.012);
+                calculator.setExpression({
+                    id: 'y_tick_dashes',
+                    latex: 'y = T_{y} \\left\\{' + tickDashLeft + ' \\le x \\le ' + yAxisX + '\\right\\}',
+                    color: '#334155',
+                    lineWidth: 2
+                });
+                // Horizontal reference gridlines across the plot
+                const gridTicks = yTicks.filter(t => t !== 0 || !hasXAxis);
+                if (gridTicks.length > 0) {
+                    calculator.setExpression({
+                        id: 'h_grid_ticks',
+                        latex: 'G_{y} = [' + gridTicks.join(',') + ']'
+                    });
+                    calculator.setExpression({
+                        id: 'h_lines',
+                        latex: 'y = G_{y} \\left\\{' + yAxisX + ' \\le x \\le ' + (rawXMax + (xSpan * 0.02)) + '\\right\\}',
+                        color: '#94a3b8',
+                        lineStyle: (window.Desmos && Desmos.Styles && Desmos.Styles.DASHED) ? Desmos.Styles.DASHED : 'DASHED',
+                        lineWidth: 1.5
+                    });
+                }
+            } else {
+                calculator.removeExpression({ id: 'y_axis_line' });
+                calculator.removeExpression({ id: 'h_ticks_list' });
+                calculator.removeExpression({ id: 'y_tick_dashes' });
+                calculator.removeExpression({ id: 'h_grid_ticks' });
+                calculator.removeExpression({ id: 'h_lines' });
+            }
+
+            // 5. Render Y-axis tick labels overlay
+            const yTicksOverlay = document.getElementById('y-ticks-overlay');
+            if (yTicksOverlay) {
+                yTicksOverlay.classList.toggle('visible', hasYAxis);
+                if (hasYAxis) {
+                    renderYTicksOverlay();
+                    setTimeout(renderYTicksOverlay, 60);
+                }
+            }
+
+            // 6. HTML labels and title reveal
+            const xOverlay = document.getElementById('x-label-overlay');
+            const yOverlay = document.getElementById('y-label-overlay');
+            const titleDisplay = document.getElementById('title-display');
+            const stageIndicator = document.getElementById('stage-indicator');
+            const nextBtn = document.getElementById('next-btn');
+            const prevBtn = document.getElementById('prev-btn');
+
+            if (xOverlay) xOverlay.classList.toggle('visible', hasXLabel);
+            if (yOverlay) yOverlay.classList.toggle('visible', hasYLabel);
+            if (titleDisplay) titleDisplay.classList.toggle('visible', hasTitle);
+            if (stageIndicator) stageIndicator.textContent = stageDescriptions[stage];
+
+            if (prevBtn) {
+                prevBtn.disabled = (stage === 0);
+            }
+
+            if (nextBtn) {
+                if (stage >= 6) {
+                    nextBtn.innerHTML = '<i class="fa-solid fa-rotate-left"></i> <span>Restart</span>';
+                } else if (stage === 0) {
+                    nextBtn.innerHTML = '<span>Next: Data</span> <i class="fa-solid fa-arrow-right"></i>';
+                } else if (stage === 1) {
+                    nextBtn.innerHTML = '<span>Next: X-Axis</span> <i class="fa-solid fa-arrow-right"></i>';
+                } else if (stage === 2) {
+                    nextBtn.innerHTML = '<span>Next: Y-Axis</span> <i class="fa-solid fa-arrow-right"></i>';
+                } else if (stage === 3) {
+                    nextBtn.innerHTML = '<span>Next: X-Label</span> <i class="fa-solid fa-arrow-right"></i>';
+                } else if (stage === 4) {
+                    nextBtn.innerHTML = '<span>Next: Y-Label</span> <i class="fa-solid fa-arrow-right"></i>';
+                } else if (stage === 5) {
+                    nextBtn.innerHTML = '<span>Next: Title</span> <i class="fa-solid fa-arrow-right"></i>';
+                }
+            }
+        }
+
+        function nextStage() {
+            if (currentStage >= 6) {
+                currentStage = 0;
+            } else {
+                currentStage++;
+            }
+            updateGraphStage(currentStage);
+        }
+
+        function prevStage() {
+            if (currentStage > 0) {
+                currentStage--;
+                updateGraphStage(currentStage);
+            }
+        }
+
+        function resetStage() {
+            currentStage = 0;
+            updateGraphStage(0);
+        }
+
+        function renderYTicksOverlay() {
+            const container = document.getElementById('y-ticks-overlay');
+            if (!container) return;
+            container.innerHTML = '';
+
+            yTicks.forEach(val => {
+                try {
+                    const coords = calculator.mathToPixels({ x: yAxisX, y: val });
+                    if (coords && !isNaN(coords.x) && !isNaN(coords.y)) {
+                        const el = document.createElement('div');
+                        el.className = 'y-tick-label';
+                        el.textContent = String(val);
+                        el.style.left = (Math.round(coords.x) - 58) + 'px';
+                        el.style.top = (Math.round(coords.y) - 7) + 'px';
+                        container.appendChild(el);
+                    }
+                } catch (e) {
+                    console.warn('mathToPixels error:', e);
+                }
+            });
+        }
+
+        window.addEventListener('resize', () => {
+            if (currentStage >= 3) {
+                renderYTicksOverlay();
+            }
+        });
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') {
+                e.preventDefault();
+                nextStage();
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                prevStage();
+            } else if (e.key === 'Home') {
+                e.preventDefault();
+                resetStage();
+            }
+        });
+
+        // Initialize at Stage 0 (Blank canvas)
+        updateGraphStage(0);
+    </script>
+</body>
+</html>
