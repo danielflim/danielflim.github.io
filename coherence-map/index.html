@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mathematics Standards Coherence Map (v0.5)</title>
+    <!-- D3.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <!-- MathJax Configuration & Library -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            svg: { fontCache: 'global' },
+            options: {
+                enableMenu: false
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Custom Stylesheet -->
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="w-screen h-screen">
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <div class="text-slate-900 font-bold text-lg tracking-tight">Loading Standards...</div>
+        <div id="loading-progress" class="text-slate-400 text-xs font-bold uppercase mt-2 tracking-widest">Fetching Data</div>
+    </div>
+
+    <!-- Tooltip -->
+    <div id="tooltip"></div>
+
+    <!-- Header Controls -->
+    <header class="header-controls">
+        <div class="flex items-center gap-4">
+            <div>
+                <h1 class="text-xl font-black text-slate-900 tracking-tight leading-none">Coherence Map</h1>
+                <p class="text-[10px] font-bold text-blue-600 uppercase tracking-wider mt-1">Hawaii Mathematics Standards</p>
+            </div>
+            <button onclick="resetFocus()" class="px-3 py-1 bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-600 hover:bg-slate-50 transition uppercase tracking-widest cursor-pointer">
+                Reset View
+            </button>
+            <button onclick="window.open('https://docs.google.com/forms/d/e/1FAIpQLScCkixyJGCUKSiYvHYnyDcga3V_He3ERctCOqXyOMAHQoOnPw/viewform?usp=header', '_blank')" class="px-3 py-1 bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-600 hover:bg-slate-50 transition uppercase tracking-widest cursor-pointer">
+                Feedback
+            </button>
+        </div>
+        
+        <!-- Search Bar -->
+        <div class="relative w-full max-w-sm">
+            <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
+                <input type="text" id="search" placeholder="Search code, description, or domain..." 
+                    class="w-full pl-10 pr-4 py-2 text-sm border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition bg-white/50 focus:bg-white shadow-sm">
+            </div>
+            <div id="searchResults"></div>
+        </div>
+
+        <!-- Domain Filter Dropdown -->
+        <div class="flex items-center gap-4">
+            <div class="text-right">
+                <select id="domainFilter" class="block w-52 text-xs font-bold text-slate-700 bg-transparent border-none focus:ring-0 cursor-pointer">
+                    <option value="all">All Domains</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <!-- Visualization SVG Canvas -->
+    <svg id="viz" class="w-full h-full"></svg>
+
+    <!-- Modular Application Entry Point -->
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
