@@ -103,17 +103,6 @@ async function initApp() {
 
         state.simulation.on("tick", updateStyles);
 
-        // Populate Domain Filter dropdown
-        const domainFilter = document.getElementById('domainFilter');
-        const uniqueDomains = Array.from(new Set(state.nodes.map(n => n.domain).filter(d => d && d !== 'Other'))).sort();
-        domainFilter.innerHTML = `<option value="all">All Domains</option>` +
-            uniqueDomains.map(d => `<option value="${d}">${d}</option>`).join('');
-
-        domainFilter.addEventListener('change', (e) => {
-            state.currentFilter = e.target.value;
-            applyFilter();
-        });
-
         // Initialize Search input
         initSearch(focusAndAlign);
 
@@ -130,7 +119,6 @@ async function initApp() {
                 const cleanedCode = initialCode.trim();
                 const matchedNode = state.nodes.find(n => n.id.toLowerCase() === cleanedCode.toLowerCase());
                 if (matchedNode) {
-                    domainFilter.value = 'all';
                     state.currentFilter = 'all';
                     focusAndAlign(matchedNode.id);
                 } else {
